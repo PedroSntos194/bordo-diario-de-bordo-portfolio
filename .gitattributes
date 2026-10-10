@@ -1,0 +1,21 @@
+# Normaliza as quebras de linha no repositório.
+#
+# Sem isto, cada arquivo salvo no Windows aparece como alteração inteira para
+# quem trabalha em Linux — e o pipeline roda em Linux. O repositório guarda LF;
+# o Git converte no checkout conforme o sistema de cada pessoa.
+* text=auto eol=lf
+
+# Binários e arquivos gerados ficam de fora da conversão.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary
+
+# Reduz ruído na revisão de arquivos gerados.
+package-lock.json linguist-generated=true -diff
+prisma/migrations/**/*.sql linguist-generated=true

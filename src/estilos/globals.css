@@ -1,0 +1,339 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de cor e tipografia do doc 11.
+ *
+ * A paleta é neutra de propósito. Como tudo aqui é token, aplicar a identidade
+ * visual de uma empresa é alterar este bloco — não refatorar componentes.
+ */
+@theme {
+  --color-fundo: #ffffff;
+  --color-superficie: #f6f7f9;
+  --color-borda: #e2e5ea;
+  --color-texto: #12151a;
+  --color-texto-suave: #5a6270;
+  --color-primaria: #1d4ed8;
+  --color-primaria-suave: #eff4ff;
+  --color-sucesso: #15803d;
+  --color-sucesso-suave: #edfaf0;
+  --color-atencao: #b45309;
+  --color-atencao-suave: #fdf6e7;
+  --color-erro: #b91c1c;
+  --color-erro-suave: #fdeeee;
+  --color-andamento: #7c3aed;
+  --color-andamento-suave: #f4efff;
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+
+  --radius-padrao: 0.5rem;
+
+  /* Alvo mínimo de toque na área do motorista (RNF022). */
+  --spacing-toque: 2.75rem;
+}
+
+/*
+ * Tema escuro.
+ *
+ * Antes ficava num `@theme` dentro de `@media (prefers-color-scheme: dark)`. O
+ * Tailwind 4 não aceita `@theme` condicional: sobe o bloco para o `:root` sem a
+ * condição, e o sistema ficava **sempre** escuro, até em celular no tema claro.
+ *
+ * Agora o escuro sobrescreve as variáveis — que é o que as classes do Tailwind
+ * leem — conforme o `data-tema` que o layout raiz põe no `<html>` a partir do
+ * cookie (`src/utilitarios/tema.ts`): `escuro` sempre, `sistema` quando o
+ * aparelho está escuro. Sem atributo, vale o claro do `@theme`.
+ *
+ * Os dois blocos repetem os mesmos valores porque CSS puro não reaproveita uma
+ * lista de declarações entre seletores; mudar uma cor é mudar nos dois.
+ */
+:root[data-tema='escuro'] {
+  --color-fundo: #0f1115;
+  --color-superficie: #171a20;
+  --color-borda: #2a2f38;
+  --color-texto: #f2f4f7;
+  --color-texto-suave: #9aa3b2;
+  --color-primaria: #3b82f6;
+  --color-primaria-suave: #16233d;
+  --color-sucesso: #22c55e;
+  --color-sucesso-suave: #10251a;
+  --color-atencao: #f59e0b;
+  --color-atencao-suave: #2a1f0c;
+  --color-erro: #ef4444;
+  --color-erro-suave: #2c1414;
+  --color-andamento: #a78bfa;
+  --color-andamento-suave: #1e1733;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-tema='sistema'] {
+    --color-fundo: #0f1115;
+    --color-superficie: #171a20;
+    --color-borda: #2a2f38;
+    --color-texto: #f2f4f7;
+    --color-texto-suave: #9aa3b2;
+    --color-primaria: #3b82f6;
+    --color-primaria-suave: #16233d;
+    --color-sucesso: #22c55e;
+    --color-sucesso-suave: #10251a;
+    --color-atencao: #f59e0b;
+    --color-atencao-suave: #2a1f0c;
+    --color-erro: #ef4444;
+    --color-erro-suave: #2c1414;
+    --color-andamento: #a78bfa;
+    --color-andamento-suave: #1e1733;
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-fundo);
+    color: var(--color-texto);
+    font-family: var(--font-sans);
+    /* 16px é o mínimo no mobile: abaixo disso o iOS aplica zoom nos campos. */
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  /* Foco sempre visível — navegação por teclado (RNF022). */
+  :focus-visible {
+    outline: 2px solid var(--color-primaria);
+    outline-offset: 2px;
+  }
+
+  /* Campos numéricos operacionais não exibem setas de incremento (doc 11). */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    appearance: textfield;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Compatibilidade dos tokens usados pelos controles: no Tailwind 4 os valores
+   arbitrários precisam de var(). Mantém o alvo de toque de 44px e os cantos. */
+@layer utilities {
+  .min-h-\[--spacing-toque\] {
+    min-height: var(--spacing-toque);
+  }
+  .rounded-\[--radius-padrao\] {
+    border-radius: var(--radius-padrao);
+  }
+}
+
+/* A página nomeada limita o formato A4 paisagem ao diário do motorista. */
+@media print {
+  @page relatorio-diario {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
+  html:has([data-relatorio-diario]) {
+    background: #ffffff !important;
+    color-scheme: light !important;
+  }
+
+  body:has([data-relatorio-diario]) {
+    --color-fundo: #ffffff;
+    --color-superficie: #ffffff;
+    --color-borda: #999999;
+    --color-texto: #111111;
+    --color-texto-suave: #111111;
+    --color-primaria: #111111;
+    --color-sucesso: #111111;
+    --color-atencao: #111111;
+    --color-erro: #111111;
+    --color-andamento: #111111;
+    page: relatorio-diario;
+    min-height: 0;
+    background: #ffffff !important;
+    color: #111111 !important;
+    color-scheme: light;
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  body:has([data-relatorio-diario]) [data-nao-imprimir],
+  body:has([data-relatorio-diario]) [data-layout-administrativo] > header,
+  body:has([data-relatorio-diario])
+    [data-area-administrativa]
+    > :not([data-relatorio-diario]):not(:has([data-relatorio-diario])) {
+    display: none !important;
+  }
+
+  /* Remove as alturas de tela e o flex dos ancestrais para paginar sem sobra. */
+  body:has([data-relatorio-diario]) [data-layout-administrativo],
+  body:has([data-relatorio-diario]) [data-conteudo-administrativo],
+  body:has([data-relatorio-diario]) [data-pagina-administrativa],
+  body:has([data-relatorio-diario]) [data-area-administrativa],
+  body:has([data-relatorio-diario]) [data-relatorio-diario] {
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] * {
+    background: transparent !important;
+    color: #111111 !important;
+    box-shadow: none !important;
+    font-size: 10pt !important;
+    text-shadow: none !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] h1 {
+    margin-bottom: 3mm;
+    font-size: 18pt !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] h2 {
+    font-size: 12pt !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] h1,
+  body:has([data-relatorio-diario]) [data-relatorio-diario] h2,
+  body:has([data-relatorio-diario]) [data-ficha-motorista] > :first-child {
+    break-after: avoid;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] a {
+    text-decoration: none;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] .truncate {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] > *,
+  body:has([data-relatorio-diario]) [data-ficha-motorista] {
+    margin-bottom: 3mm;
+  }
+
+  body:has([data-relatorio-diario])
+    [data-relatorio-diario]
+    > section:not(:has([data-ficha-motorista])),
+  body:has([data-relatorio-diario]) [data-ficha-motorista] {
+    padding: 3mm !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] section:has([data-ficha-motorista]),
+  body:has([data-relatorio-diario]) [data-ficha-motorista] {
+    display: block;
+    break-inside: auto;
+  }
+
+  body:has([data-relatorio-diario]) [data-ficha-motorista] > * + * {
+    margin-top: 3mm;
+  }
+
+  body:has([data-relatorio-diario]) [data-relatorio-diario] dl {
+    break-inside: avoid;
+  }
+
+  body:has([data-relatorio-diario]) [data-ficha-motorista] > :not([data-tabela-viagens]) {
+    break-inside: avoid;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens],
+  body:has([data-relatorio-diario]) [data-tabela-viagens] table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] table,
+  body:has([data-relatorio-diario]) table[data-tabela-viagens] {
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th,
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td {
+    padding: 3pt 4pt;
+    border: 0.5pt solid #999999;
+    min-width: 0 !important;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    vertical-align: top;
+  }
+
+  /* Reserva espaço para os números: horários e odômetros precisam ficar inteiros. */
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(1) {
+    width: 34%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(2) {
+    width: 7%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(4) {
+    width: 8%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(3),
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(5) {
+    width: 10%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(6) {
+    width: 7%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] th:nth-child(7) {
+    width: 24%;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:nth-child(2),
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:nth-child(3),
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:nth-child(5),
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:nth-child(6) {
+    white-space: nowrap !important;
+    overflow-wrap: normal;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:nth-child(4) {
+    white-space: normal !important;
+    overflow-wrap: break-word;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] td:last-child {
+    white-space: pre-line !important;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] thead {
+    display: table-header-group;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] tfoot {
+    display: table-row-group;
+  }
+
+  body:has([data-relatorio-diario]) [data-tabela-viagens] tr {
+    break-inside: avoid;
+  }
+}

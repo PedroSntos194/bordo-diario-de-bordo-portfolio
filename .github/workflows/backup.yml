@@ -1,0 +1,176 @@
+# Cópia de segurança diária do banco de produção (US046 · RNF013 · doc 24)
+#
+# Independente do Neon: a restauração por ponto no tempo de lá vale só pela
+# janela do plano e some junto com a conta. Esta cópia fica num balde próprio
+# do R2, criptografada, e é restaurada num banco descartável a cada execução —
+# o ensaio de restauração acontece todo dia, sem ninguém lembrar dele.
+#
+# O GitHub descarta boa parte das execuções agendadas (doc 27: 6 de 26 numa
+# janela de 26 h). Por isso o agendamento se repete ao longo do dia e cada
+# execução pula se a cópia daquele dia já existe: basta uma passar.
+#
+# Configurar em Settings → Secrets and variables → Actions:
+#   Secrets
+#     BACKUP_DATABASE_URL      conexão **direta** do Neon (sem `-pooler`): o
+#                              pg_dump não funciona pelo PgBouncer
+#     BACKUP_SENHA             senha da criptografia — guardada também fora do
+#                              GitHub, no `.env.producao`; sem ela a cópia não abre
+#     BACKUP_S3_CHAVE_ID       token do R2 com escrita **só** no balde de cópias
+#     BACKUP_S3_CHAVE_SECRETA
+#   Variables
+#     BACKUP_S3_ENDPOINT       https://<conta>.r2.cloudflarestorage.com
+#     BACKUP_S3_BUCKET         bordo-backups
+#
+# Falha manda e-mail para quem mexeu por último no agendamento deste arquivo.
+
+name: Backup
+
+on:
+  # Nesta versão de demonstração não há banco de produção para copiar, então o
+  # agendamento fica desligado. Para ligar, configure os segredos acima e
+  # descomente:
+  # schedule:
+  #   # 02h23, 06h23, 10h23, 14h23 e 18h23 em São Paulo.
+  #   - cron: '23 5,9,13,17,21 * * *'
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: Fazer a cópia mesmo que a de hoje já exista
+        type: boolean
+        default: false
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  copia:
+    name: Copiar, ensaiar a restauração e guardar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # Banco descartável onde a cópia é restaurada para provar que presta.
+      ensaio:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ensaio
+          POSTGRES_PASSWORD: ensaio
+          POSTGRES_DB: ensaio
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ensaio" --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      ORIGEM: ${{ secrets.BACKUP_DATABASE_URL }}
+      SENHA: ${{ secrets.BACKUP_SENHA }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_CHAVE_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_CHAVE_SECRETA }}
+      ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+      BALDE: ${{ vars.BACKUP_S3_BUCKET }}
+      AWS_DEFAULT_REGION: auto
+      # O R2 não aceita as somas de verificação que o AWS CLI passou a mandar
+      # por padrão; só quando a operação exige.
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+      # Mesma versão do Neon de produção (PostgreSQL 16).
+      PG: docker run --rm -i --network host -v ${{ github.workspace }}:/trabalho -w /trabalho postgres:16-alpine
+
+    steps:
+      - name: Conferir configuração
+        run: |
+          faltando=""
+          [ -z "$ORIGEM" ] && faltando="$faltando BACKUP_DATABASE_URL"
+          [ -z "$SENHA" ] && faltando="$faltando BACKUP_SENHA"
+          [ -z "$AWS_ACCESS_KEY_ID" ] && faltando="$faltando BACKUP_S3_CHAVE_ID"
+          [ -z "$AWS_SECRET_ACCESS_KEY" ] && faltando="$faltando BACKUP_S3_CHAVE_SECRETA"
+          [ -z "$ENDPOINT" ] && faltando="$faltando BACKUP_S3_ENDPOINT(variable)"
+          [ -z "$BALDE" ] && faltando="$faltando BACKUP_S3_BUCKET(variable)"
+          if [ -n "$faltando" ]; then
+            echo "::error::Falta configurar:$faltando — ver o cabeçalho deste arquivo."
+            exit 1
+          fi
+          case "$ORIGEM" in
+            *-pooler*) echo "::error::BACKUP_DATABASE_URL aponta para o pooler; use a conexão direta."; exit 1 ;;
+          esac
+
+      - name: Ver se a cópia de hoje já existe
+        id: hoje
+        run: |
+          data="$(TZ=America/Sao_Paulo date +%F)"
+          chave="diario/bordo_${data}.dump.gpg"
+          echo "chave=$chave" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.forcar }}" != "true" ] && \
+             aws s3api head-object --bucket "$BALDE" --key "$chave" --endpoint-url "$ENDPOINT" > /dev/null 2>&1; then
+            echo "A cópia de $data já existe. Nada a fazer."
+            echo "pular=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Copiar o banco
+        if: steps.hoje.outputs.pular != 'true'
+        run: |
+          set -euo pipefail
+          # Formato custom, como o scripts/backup.sh: comprimido e restaurável
+          # por tabela. Sem dono nem permissões, para restaurar em qualquer banco.
+          $PG pg_dump --format=custom --compress=9 --no-owner --no-privileges \
+            --file=copia.dump "$ORIGEM"
+          tamanho="$(wc -c < copia.dump)"
+          echo "Cópia: $tamanho bytes"
+          if [ "$tamanho" -lt 1024 ]; then
+            echo "::error::Cópia suspeita de vazia ($tamanho bytes)."
+            exit 1
+          fi
+
+      - name: Ensaiar a restauração
+        if: steps.hoje.outputs.pular != 'true'
+        env:
+          DESTINO: postgresql://ensaio:ensaio@localhost:5432/ensaio
+        run: |
+          set -euo pipefail
+          $PG pg_restore --no-owner --no-privileges --exit-on-error --dbname="$DESTINO" copia.dump
+
+          # As contagens da origem são lidas depois da cópia, com o sistema no
+          # ar: podem ter crescido. Restaurada maior que a origem, ou sem
+          # nenhum usuário, é que denuncia cópia errada.
+          consulta="SELECT 'usuario', count(*) FROM usuario UNION ALL
+                    SELECT 'veiculo', count(*) FROM veiculo UNION ALL
+                    SELECT 'rota', count(*) FROM rota UNION ALL
+                    SELECT 'jornada', count(*) FROM jornada UNION ALL
+                    SELECT 'corrida', count(*) FROM corrida UNION ALL
+                    SELECT 'abastecimento', count(*) FROM abastecimento UNION ALL
+                    SELECT 'log_auditoria', count(*) FROM log_auditoria"
+          $PG psql "$DESTINO" -At -F ' ' -c "$consulta" > restaurada.txt
+          $PG psql "$ORIGEM" -At -F ' ' -c "$consulta" > origem.txt
+
+          echo "tabela          origem  restaurada"
+          problema=""
+          while read -r tabela restaurada; do
+            origem="$(awk -v t="$tabela" '$1 == t { print $2 }' origem.txt)"
+            printf '%-15s %6s  %10s\n' "$tabela" "$origem" "$restaurada"
+            [ "$restaurada" -gt "$origem" ] && problema="$problema $tabela"
+          done < restaurada.txt
+
+          usuarios="$(awk '$1 == "usuario" { print $2 }' restaurada.txt)"
+          if [ "$usuarios" -eq 0 ] || [ -n "$problema" ]; then
+            echo "::error::A cópia restaurada não confere:${problema:- nenhum usuário}."
+            exit 1
+          fi
+
+      - name: Criptografar e guardar no R2
+        if: steps.hoje.outputs.pular != 'true'
+        run: |
+          set -euo pipefail
+          # A senha entra pela entrada padrão, não pela linha de comando, para
+          # não aparecer na lista de processos.
+          printf '%s' "$SENHA" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --output copia.dump.gpg copia.dump
+          aws s3 cp copia.dump.gpg "s3://$BALDE/${{ steps.hoje.outputs.chave }}" \
+            --endpoint-url "$ENDPOINT" --only-show-errors
+          echo "Guardada: s3://$BALDE/${{ steps.hoje.outputs.chave }} ($(wc -c < copia.dump.gpg) bytes)"
+
+      - name: Apagar os arquivos locais
+        if: always()
+        run: rm -f copia.dump copia.dump.gpg origem.txt restaurada.txt

@@ -1,0 +1,56 @@
+# dependências
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ambiente — nunca versionar (doc 17 · RNF005)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+# Em português, que é o nome usado no servidor (doc 24). Sem esta linha, o
+# arquivo com a senha do banco e o SESSAO_SECRET de produção seria versionável:
+# as regras acima só cobrem a grafia em inglês.
+.env.producao
+.env.homologacao
+!.env.producao.example
+
+# bundle do agendador, reconstruído por `npm run build:agendador`
+dist/
+
+# testes
+coverage/
+playwright-report/
+test-results/
+
+# armazenamento local de arquivos gerados
+storage/
+!storage/.gitkeep
+
+# sistema operacional / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*
+
+# Pacotes de transferência entre computadores. Levam o .env dentro do zip —
+# nunca devem ir para o repositório.
+transferencia/
+
+# Guias entregues localmente e capturas temporárias. Os guias do site ficam em public/guias.
+output/
+tmp/

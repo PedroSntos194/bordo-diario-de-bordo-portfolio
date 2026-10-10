@@ -1,0 +1,52 @@
+# O que NÃO entra no contexto de build.
+#
+# A primeira seção é de segurança, não de tamanho. O `next build` com
+# `output: 'standalone'` **copia o `.env` do diretório para dentro de
+# `.next/standalone/`**. Se o arquivo chegar ao contexto de build, a string de
+# conexão do banco e o `SESSAO_SECRET` acabam assados numa camada da imagem —
+# de onde qualquer pessoa com acesso ao registro os extrai com `docker history`.
+#
+# Excluir aqui é a defesa primária: sem `.env` no contexto, não há o que copiar.
+# O estágio final ainda remove o arquivo por precaução (ver Dockerfile).
+.env
+.env.*
+!.env.example
+!.env.producao.example
+
+# Segredos e chaves que nunca devem entrar numa imagem.
+*.pem
+*.key
+*.p12
+
+# Dependências e saídas de build: reconstruídas dentro da imagem.
+node_modules
+.next
+out
+dist
+coverage
+*.tsbuildinfo
+
+# Arquivos gerados em execução — vivem em volume, não na imagem.
+storage
+
+# Histórico e ferramentas de desenvolvimento.
+.git
+.github
+.vscode
+.idea
+.claude
+
+# Documentação: útil no repositório, peso morto na imagem.
+docs
+README.md
+
+# Testes não rodam dentro da imagem de produção; a CI já os executou.
+tests
+vitest.config.ts
+playwright-report
+test-results
+
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db

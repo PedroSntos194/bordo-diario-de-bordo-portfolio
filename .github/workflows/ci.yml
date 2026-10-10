@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+
+    # Etapas em ordem crescente de custo: o pipeline falha o mais cedo possível.
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        run: npx prisma generate
+
+      - name: Validar schema do banco
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          # O schema exige as duas desde a migração para o pooler do Neon (doc 27).
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verificação de tipos
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+          APP_AMBIENTE: local
+          APP_URL: http://localhost:3000
+          SESSAO_SECRET: segredo-de-integracao-continua-com-32-chars
+
+  fluxos-http:
+    name: Fluxos HTTP com PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bordo_ci
+          POSTGRES_PASSWORD: bordo_ci_apenas_testes
+          POSTGRES_DB: bordo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bordo_ci -d bordo_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Gerar cliente Prisma
+        run: npx prisma generate
+      - name: Testar contratos e fluxos completos
+        run: npm run test:fluxos
+        env:
+          TESTE_POSTGRES_PORTA: '5432'
+      - name: Guardar resultado e log dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testes-fluxos-http
+          path: output/testes-http/
+          retention-days: 14
+
+  seguranca:
+    name: Dependências
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Vulnerabilidade crítica bloqueia a mesclagem (doc 17).
+      - run: npm audit --audit-level=critical

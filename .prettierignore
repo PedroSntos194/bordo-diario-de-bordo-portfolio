@@ -1,0 +1,31 @@
+# Arquivos que o Prettier não deve reformatar.
+
+# --- Documentação -----------------------------------------------------------
+# Os documentos do projeto são texto escrito à mão, com quebras deliberadas em
+# ~100 colunas e tabelas alinhadas para serem legíveis no editor.
+#
+# O Prettier trata tabela markdown preenchendo cada célula com espaços até
+# alinhar a coluna mais larga. Numa tabela de riscos, isso vira linha de 300
+# caracteres — o markdown renderiza igual, mas editar à mão fica insuportável.
+# Aplicar o formatador aqui custaria ~1.600 linhas de ruído e atrapalharia
+# justamente a atividade mais frequente neste repositório, sem nenhum ganho.
+#
+# Formatação de **código** continua obrigatória e verificada na CI.
+docs/
+README.md
+
+# --- Gerados ----------------------------------------------------------------
+# O npm reescreve o lockfile no seu próprio formato; deixar o Prettier opinar
+# sobre ele cria uma falha de CI misteriosa no dia em que alguém rodar
+# `npm install` numa versão diferente do npm.
+package-lock.json
+
+# --- Saídas -----------------------------------------------------------------
+.next/
+coverage/
+storage/
+node_modules/
+# Bundle do agendador, gerado por esbuild.
+dist/
+tmp/
+output/

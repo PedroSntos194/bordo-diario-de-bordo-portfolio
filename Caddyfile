@@ -1,0 +1,60 @@
+# =============================================================================
+# Bordo — proxy reverso e TLS (US046 · RNF002)
+#
+# O Caddy resolve o certificado sozinho: pede à Let's Encrypt na primeira
+# subida e renova antes de vencer, sem cron e sem ninguém lembrar. É o motivo de
+# ele estar aqui em vez do Nginx, que exigiria o certbot ao lado.
+#
+# Pré-requisito: o domínio precisa apontar para o IP do servidor **antes** de
+# subir. O desafio HTTP-01 da Let's Encrypt bate na porta 80 deste host; sem o
+# DNS propagado, a emissão falha e o Caddy fica repetindo.
+# =============================================================================
+
+{
+	email {$EMAIL_ACME}
+
+	# Log do próprio servidor em JSON, para o mesmo coletor que lê o da aplicação.
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$DOMINIO} {
+	encode zstd gzip
+
+	# `reverse_proxy` já define X-Forwarded-For, X-Forwarded-Proto e
+	# X-Forwarded-Host. O primeiro importa mais do que parece: é dele que sai o
+	# IP gravado na trilha de auditoria (RF037). Sem o proxy repassá-lo, toda
+	# ação ficaria registrada com o endereço interno do contêiner.
+	reverse_proxy app:3000 {
+		health_uri /api/health
+		health_interval 30s
+		health_timeout 5s
+	}
+
+	# Cabeçalhos de segurança **não** são definidos aqui de propósito.
+	#
+	# A aplicação já envia HSTS, X-Frame-Options, X-Content-Type-Options e
+	# Referrer-Policy (next.config.ts), e a CSP é montada por requisição no
+	# middleware, com nonce. Repetir qualquer um deles aqui produziria dois
+	# cabeçalhos: no caso da CSP o navegador aplica a **interseção** dos dois, o
+	# que na prática bloquearia os scripts do próprio Next — exatamente o
+	# defeito que custou três sprints no início do projeto.
+	#
+	# O único que faz sentido aqui é remover a assinatura do servidor.
+	header {
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Redireciona o domínio sem `www` ou com, conforme o que estiver configurado.
+# Ajuste ou remova conforme o domínio real definido no V-02.
+# www.{$DOMINIO} {
+# 	redir https://{$DOMINIO}{uri} permanent
+# }

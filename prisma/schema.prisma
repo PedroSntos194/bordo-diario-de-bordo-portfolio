@@ -1,0 +1,849 @@
+// =============================================================================
+// Bordo — Diário de Bordo Digital
+// Modelo de dados conforme docs/12-banco-de-dados.md
+//
+// Convenções: tabelas em snake_case singular · PK uuid · datas em timestamptz
+// (UTC) · exclusão lógica por `status` + `excluidoEm`.
+//
+// Índices únicos PARCIAIS (RN002, RN012, RN013, RN014) não são expressáveis no
+// schema do Prisma e são criados por SQL em prisma/migrations/*/migration.sql.
+// Eles são a garantia real contra condição de corrida — a verificação em código
+// é apenas a mensagem amigável.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  /// Conexão da APLICAÇÃO. Em hospedagem sem servidor precisa ser a string
+  /// **com pool** (`-pooler` no host): cada invocação é um cliente novo, e o
+  /// endpoint direto esgota as conexões no primeiro pico.
+  url       = env("DATABASE_URL")
+  /// Conexão das MIGRAÇÕES, sempre **sem pool**.
+  ///
+  /// O PgBouncer em modo transação não suporta o que o Prisma Migrate faz —
+  /// advisory locks e comandos fora de transação. Migrar pelo pooler falha, ou
+  /// pior, falha pela metade. Onde não há pooler (desenvolvimento, contêiner)
+  /// as duas apontam para o mesmo lugar.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------- enumerações
+
+enum Perfil {
+  ADMIN
+  MOTORISTA
+}
+
+enum StatusUsuario {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+  EXCLUIDO
+}
+
+enum StatusVeiculo {
+  ATIVO
+  INATIVO
+  MANUTENCAO
+}
+
+enum StatusRota {
+  ATIVA
+  INATIVA
+}
+
+enum Turno {
+  MANHA
+  TARDE
+  NOITE
+  INTEGRAL
+}
+
+enum StatusJornada {
+  ABERTA
+  ENCERRADA
+  CANCELADA
+}
+
+enum StatusCorrida {
+  EM_ANDAMENTO
+  ENCERRADA
+  CANCELADA
+}
+
+enum TipoEvento {
+  INICIO
+  CHEGADA
+  SAIDA
+  EMBARQUE
+  DESEMBARQUE
+  FIM
+}
+
+enum OrigemLocalizacao {
+  GPS
+  REDE
+  MANUAL
+}
+
+/// Combustíveis que a frota usa. Van de transporte é diesel na quase totalidade;
+/// os demais existem para o caso de um veículo leve entrar na frota (US024).
+enum TipoCombustivel {
+  DIESEL
+  GASOLINA
+  ETANOL
+  GNV
+}
+
+enum TipoOcorrencia {
+  ATRASO
+  PANE
+  ACIDENTE
+  DESVIO
+  PASSAGEIRO
+  OUTRO
+}
+
+enum TipoArquivo {
+  RELATORIO_DIARIO
+  EXPORTACAO
+  IMPORTACAO
+  RELATORIO_ERROS
+  /// Planilhas do ciclo de 16 a 15: pagamento dos motoristas e boletim de medição.
+  FECHAMENTO_MENSAL
+}
+
+/// Linha do quadro-resumo do boletim de medição — cada uma tem tarifa própria.
+enum CategoriaMedicao {
+  ONIBUS
+  VAN_DIURNA
+  VAN_NOTURNA
+}
+
+enum FormaPagamentoPedagio {
+  DINHEIRO
+  TAG
+  CARTAO
+}
+
+enum TipoDestinoImportacao {
+  USUARIO
+  VEICULO
+  ROTA
+}
+
+enum StatusImportacao {
+  PROCESSANDO
+  CONCLUIDA
+  REJEITADA
+  FALHA
+}
+
+/// Relatórios que a exportação em Excel produz (US032).
+enum TipoExportacao {
+  JORNADAS
+  CORRIDAS
+  RESUMO_DIA
+}
+
+/// Ciclo de vida de uma exportação admitida para segundo plano (US031).
+enum StatusTarefa {
+  PENDENTE
+  PROCESSANDO
+  CONCLUIDA
+  FALHA
+}
+
+enum CanalNotificacao {
+  WHATSAPP
+  INTERNA
+}
+
+enum TipoNotificacao {
+  RESUMO_DIA
+  PENDENCIA_JORNADA
+  SEM_REGISTRO
+  /// Lista consolidada das pendências do dia, enviada ao administrador (US038).
+  PENDENCIA_DIA
+  /// Exportação pedida em segundo plano terminou e já pode ser baixada (US031).
+  EXPORTACAO_PRONTA
+  FALHA_SISTEMA
+}
+
+enum StatusNotificacao {
+  PENDENTE
+  ENVIADA
+  FALHA
+  CANCELADA
+}
+
+/// Operações que o aplicativo do motorista consegue enfileirar sem rede (US025).
+enum TipoOperacaoOffline {
+  ABRIR_JORNADA
+  INICIAR_CORRIDA
+  REGISTRAR_EVENTO
+  ENCERRAR_CORRIDA
+  ENCERRAR_JORNADA
+}
+
+enum AcaoAuditoria {
+  CRIAR
+  ATUALIZAR
+  EXCLUIR
+  LOGIN
+  LOGOUT
+  LOGIN_FALHA
+  EXPORTAR
+  IMPORTAR
+  ACESSO_NEGADO
+}
+
+// ------------------------------------------------------------------- usuários
+
+model Usuario {
+  id        String  @id @default(uuid()) @db.Uuid
+  nome      String  @db.VarChar(120)
+  /// Somente dígitos, sem máscara (RN002).
+  cpf       String  @db.Char(11)
+  telefone  String  @db.VarChar(20)
+  email     String? @db.VarChar(160)
+  /// Reservado para evolução (V-07).
+  matricula String? @db.VarChar(30)
+  perfil    Perfil
+
+  /// Argon2id. Nunca serializado em resposta de API (doc 17).
+  senhaHash               String    @map("senha_hash") @db.VarChar(255)
+  deveTrocarSenha         Boolean   @default(true) @map("deve_trocar_senha")
+  senhaTemporariaExpiraEm DateTime? @map("senha_temporaria_expira_em") @db.Timestamptz(6)
+  tentativasLogin         Int       @default(0) @map("tentativas_login") @db.SmallInt
+  bloqueadoAte            DateTime? @map("bloqueado_ate") @db.Timestamptz(6)
+  ultimoLoginEm           DateTime? @map("ultimo_login_em") @db.Timestamptz(6)
+
+  cnhNumero    String?   @map("cnh_numero") @db.VarChar(20)
+  cnhCategoria String?   @map("cnh_categoria") @db.VarChar(5)
+  cnhValidade  DateTime? @map("cnh_validade") @db.Date
+
+  status     StatusUsuario @default(ATIVO)
+  excluidoEm DateTime?     @map("excluido_em") @db.Timestamptz(6)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornadas         Jornada[]
+  ocorrencias      Ocorrencia[]
+  sessoes          Sessao[]
+  aceites          AceitePrivacidade[]
+  auditorias       LogAuditoria[]
+  escalas          Escala[]
+  folgas           Folga[]
+  arquivosGerados  Arquivo[]
+  importacoes      Importacao[]
+  notificacoes     Notificacao[]
+  operacoesOffline OperacaoSincronizada[]
+  exportacoes      TarefaExportacao[]
+
+  @@index([perfil, status])
+  @@index([nome])
+  @@map("usuario")
+}
+
+model Sessao {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  /// SHA-256 do token. O valor original só existe no cookie do usuário.
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  expiraEm  DateTime @map("expira_em") @db.Timestamptz(6)
+  ip        String?  @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.VarChar(300)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiraEm])
+  @@map("sessao")
+}
+
+model AceitePrivacidade {
+  id          String   @id @default(uuid()) @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  versaoTexto String   @map("versao_texto") @db.VarChar(20)
+  aceitoEm    DateTime @default(now()) @map("aceito_em") @db.Timestamptz(6)
+  ip          String?  @db.VarChar(45)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, versaoTexto])
+  @@map("aceite_privacidade")
+}
+
+// ------------------------------------------------------------------ cadastros
+
+model Veiculo {
+  id                    String        @id @default(uuid()) @db.Uuid
+  placa                 String        @unique @db.VarChar(8)
+  modelo                String        @db.VarChar(60)
+  marca                 String?       @db.VarChar(60)
+  ano                   Int?          @db.SmallInt
+  capacidadePassageiros Int           @map("capacidade_passageiros") @db.SmallInt
+  /// Em quilômetros. Atualizado no encerramento da jornada (RN020).
+  odometroAtual         Int           @map("odometro_atual")
+  observacoes           String?       @db.Text
+  status                StatusVeiculo @default(ATIVO)
+
+  /// Contrato com o cliente, para o boletim de medição. Tudo opcional: van sem
+  /// contrato preenchido aparece no fechamento como pendência, não some.
+  cliente          String?           @db.VarChar(60)
+  categoriaMedicao CategoriaMedicao? @map("categoria_medicao")
+  /// Valor mensal do contrato; o valor do dia é este dividido pelo divisor configurado.
+  valorMensal      Decimal?          @map("valor_mensal") @db.Decimal(12, 2)
+  valorKmExcedido  Decimal?          @map("valor_km_excedido") @db.Decimal(8, 2)
+  /// Valor de cada sábado, domingo ou feriado trabalhado.
+  valorDiaExtra    Decimal?          @map("valor_dia_extra") @db.Decimal(10, 2)
+  /// Km por dia incluídos no contrato; vazio usa o limite configurado.
+  limiteKmDia      Int?              @map("limite_km_dia")
+  linhaOrigem      String?           @map("linha_origem") @db.VarChar(80)
+  linhaDestino     String?           @map("linha_destino") @db.VarChar(80)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornadas       Jornada[]
+  escalas        Escala[]
+  abastecimentos Abastecimento[]
+  pedagios       Pedagio[]
+
+  @@index([status])
+  @@map("veiculo")
+}
+
+model Rota {
+  id                  String     @id @default(uuid()) @db.Uuid
+  codigo              String     @unique @db.VarChar(20)
+  nome                String     @db.VarChar(120)
+  origem              String     @db.VarChar(160)
+  destino             String     @db.VarChar(160)
+  turno               Turno
+  distanciaEstimadaKm Decimal?   @map("distancia_estimada_km") @db.Decimal(7, 2)
+  status              StatusRota @default(ATIVA)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  pontos   PontoParada[]
+  corridas Corrida[]
+  escalas  EscalaRota[]
+
+  @@index([status, turno])
+  @@map("rota")
+}
+
+model PontoParada {
+  id        String   @id @default(uuid()) @db.Uuid
+  rotaId    String   @map("rota_id") @db.Uuid
+  ordem     Int      @db.SmallInt
+  nome      String   @db.VarChar(120)
+  endereco  String?  @db.VarChar(240)
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  rota    Rota            @relation(fields: [rotaId], references: [id], onDelete: Cascade)
+  eventos CorridaEvento[]
+
+  @@unique([rotaId, ordem])
+  @@index([rotaId])
+  @@map("ponto_parada")
+}
+
+/// Escala diária — Could Have (US014).
+model Escala {
+  id          String   @id @default(uuid()) @db.Uuid
+  data        DateTime @db.Date
+  motoristaId String   @map("motorista_id") @db.Uuid
+  veiculoId   String   @map("veiculo_id") @db.Uuid
+  /// Obrigatório, com `INTEGRAL` para o dia inteiro.
+  ///
+  /// Era anulável, e isso deixava a restrição de unicidade **sem efeito** no
+  /// caso mais comum: no PostgreSQL dois `NULL` são distintos, então o mesmo
+  /// veículo podia ser escalado duas vezes no mesmo dia sem turno. A garantia
+  /// que o critério de aceitação pede só existe com a coluna preenchida.
+  turno       Turno    @default(INTEGRAL)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  motorista Usuario      @relation(fields: [motoristaId], references: [id])
+  veiculo   Veiculo      @relation(fields: [veiculoId], references: [id])
+  rotas     EscalaRota[]
+
+  @@unique([data, veiculoId, turno])
+  @@unique([data, motoristaId, turno])
+  @@index([data, motoristaId])
+  @@map("escala")
+}
+
+/// Rotas de uma escala (US014 · RF013 — "uma ou mais rotas").
+///
+/// Tabela própria, e não uma coluna `rota_id` na escala, porque o requisito é
+/// explícito quanto ao plural. Com a rota dentro da escala, duas rotas para o
+/// mesmo motorista exigiriam duas linhas — e aí a unicidade por
+/// (data, veículo, turno), que é o outro critério da mesma história, passaria a
+/// recusar a segunda.
+model EscalaRota {
+  escalaId String @map("escala_id") @db.Uuid
+  rotaId   String @map("rota_id") @db.Uuid
+  /// Ordem sugerida ao motorista; é a posição na lista da tela.
+  ordem    Int    @db.SmallInt
+
+  escala Escala @relation(fields: [escalaId], references: [id], onDelete: Cascade)
+  rota   Rota   @relation(fields: [rotaId], references: [id])
+
+  @@id([escalaId, rotaId])
+  @@index([rotaId])
+  @@map("escala_rota")
+}
+
+/// Folga planejada. Remover apenas desativa o registro, preservando a história.
+model Folga {
+  id            String   @id @default(uuid()) @db.Uuid
+  data          DateTime @db.Date
+  motoristaId   String   @map("motorista_id") @db.Uuid
+  observacoes   String?  @db.VarChar(240)
+  ativa         Boolean  @default(true)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+  motorista     Usuario  @relation(fields: [motoristaId], references: [id])
+
+  @@unique([data, motoristaId])
+  @@index([data, ativa])
+  @@map("folga")
+}
+
+/// Feriado que conta como dia extra no fechamento (sábado, domingo e feriado).
+model Feriado {
+  id            String   @id @default(uuid()) @db.Uuid
+  data          DateTime @unique @db.Date
+  nome          String   @db.VarChar(80)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  @@map("feriado")
+}
+
+// ------------------------------------------------------------------- operação
+
+model Jornada {
+  id          String   @id @default(uuid()) @db.Uuid
+  motoristaId String   @map("motorista_id") @db.Uuid
+  veiculoId   String   @map("veiculo_id") @db.Uuid
+  /// Data operacional no fuso local (RN012).
+  data        DateTime @db.Date
+
+  iniciadaEm  DateTime  @map("iniciada_em") @db.Timestamptz(6)
+  encerradaEm DateTime? @map("encerrada_em") @db.Timestamptz(6)
+
+  odometroInicial  Int      @map("odometro_inicial")
+  odometroFinal    Int?     @map("odometro_final")
+  kmTotal          Decimal? @map("km_total") @db.Decimal(8, 2)
+  totalCorridas    Int?     @map("total_corridas") @db.SmallInt
+  totalPassageiros Int?     @map("total_passageiros")
+  duracaoMinutos   Int?     @map("duracao_minutos")
+  observacoes      String?  @db.Text
+
+  /// Idempotência da sincronização offline (RN025).
+  clientUuid String? @unique @map("client_uuid") @db.Uuid
+
+  /// O horário veio do relógio do celular, registrado sem sinal, e não do
+  /// servidor. Vale para a hora extra, mas o fechamento manda conferir: o
+  /// relógio do aparelho pode estar errado ou ter sido mudado.
+  inicioPeloAparelho Boolean @default(false) @map("inicio_pelo_aparelho")
+  fimPeloAparelho    Boolean @default(false) @map("fim_pelo_aparelho")
+
+  status StatusJornada @default(ABERTA)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  motorista      Usuario         @relation(fields: [motoristaId], references: [id])
+  veiculo        Veiculo         @relation(fields: [veiculoId], references: [id])
+  corridas       Corrida[]
+  ocorrencias    Ocorrencia[]
+  abastecimentos Abastecimento[]
+  pedagios       Pedagio[]
+
+  @@index([data, status])
+  @@index([veiculoId, data])
+  @@index([motoristaId, data])
+  @@map("jornada")
+}
+
+model Corrida {
+  id        String  @id @default(uuid()) @db.Uuid
+  jornadaId String  @map("jornada_id") @db.Uuid
+  /// Nulo em corrida avulsa — nesse caso origem/destino são obrigatórios.
+  rotaId    String? @map("rota_id") @db.Uuid
+
+  origemDescricao  String? @map("origem_descricao") @db.VarChar(160)
+  destinoDescricao String? @map("destino_descricao") @db.VarChar(160)
+
+  iniciadaEm  DateTime  @map("iniciada_em") @db.Timestamptz(6)
+  encerradaEm DateTime? @map("encerrada_em") @db.Timestamptz(6)
+
+  odometroInicial       Int?      @map("odometro_inicial")
+  odometroFinal         Int?      @map("odometro_final")
+  kmPercorrido          Decimal?  @map("km_percorrido") @db.Decimal(7, 2)
+  duracaoMinutos        Int?      @map("duracao_minutos")
+  quantidadePassageiros Int?      @map("quantidade_passageiros") @db.SmallInt
+  observacoes           String?   @db.Text
+  motivoCancelamento    String?   @map("motivo_cancelamento") @db.VarChar(240)
+  /// Marcação "editado" exibida na interface (RN019).
+  editadaEm             DateTime? @map("editada_em") @db.Timestamptz(6)
+
+  clientUuid String? @unique @map("client_uuid") @db.Uuid
+
+  status StatusCorrida @default(EM_ANDAMENTO)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornada      Jornada            @relation(fields: [jornadaId], references: [id])
+  rota         Rota?              @relation(fields: [rotaId], references: [id])
+  eventos      CorridaEvento[]
+  localizacoes PontoLocalizacao[]
+  ocorrencias  Ocorrencia[]
+
+  @@index([jornadaId])
+  @@index([rotaId, iniciadaEm])
+  @@map("corrida")
+}
+
+model CorridaEvento {
+  id            String     @id @default(uuid()) @db.Uuid
+  corridaId     String     @map("corrida_id") @db.Uuid
+  pontoParadaId String?    @map("ponto_parada_id") @db.Uuid
+  tipo          TipoEvento
+  descricao     String?    @db.VarChar(160)
+  ocorridoEm    DateTime   @map("ocorrido_em") @db.Timestamptz(6)
+
+  clientUuid String? @unique @map("client_uuid") @db.Uuid
+
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  criadoPor String?  @map("criado_por") @db.Uuid
+
+  corrida      Corrida            @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  pontoParada  PontoParada?       @relation(fields: [pontoParadaId], references: [id])
+  localizacoes PontoLocalizacao[]
+
+  @@index([corridaId, ocorridoEm])
+  @@map("corrida_evento")
+}
+
+/// Tabela de maior volume e sujeita à política de retenção (RNF007).
+/// Registros são fatos imutáveis: sem `atualizadoEm`, sem edição (RN022).
+model PontoLocalizacao {
+  id              BigInt            @id @default(autoincrement())
+  corridaId       String            @map("corrida_id") @db.Uuid
+  corridaEventoId String?           @map("corrida_evento_id") @db.Uuid
+  latitude        Decimal           @db.Decimal(10, 7)
+  longitude       Decimal           @db.Decimal(10, 7)
+  precisaoMetros  Decimal?          @map("precisao_metros") @db.Decimal(7, 2)
+  origem          OrigemLocalizacao
+  /// Relógio do dispositivo.
+  capturadoEm     DateTime          @map("capturado_em") @db.Timestamptz(6)
+  /// Relógio do servidor — a diferença revela atraso de sincronização.
+  recebidoEm      DateTime          @default(now()) @map("recebido_em") @db.Timestamptz(6)
+
+  corrida Corrida        @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  evento  CorridaEvento? @relation(fields: [corridaEventoId], references: [id], onDelete: Cascade)
+
+  @@index([corridaId, capturadoEm])
+  @@index([capturadoEm])
+  @@map("ponto_localizacao")
+}
+
+model Ocorrencia {
+  id         String         @id @default(uuid()) @db.Uuid
+  jornadaId  String         @map("jornada_id") @db.Uuid
+  corridaId  String?        @map("corrida_id") @db.Uuid
+  tipo       TipoOcorrencia
+  descricao  String         @db.Text
+  ocorridoEm DateTime       @map("ocorrido_em") @db.Timestamptz(6)
+  latitude   Decimal?       @db.Decimal(10, 7)
+  longitude  Decimal?       @db.Decimal(10, 7)
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornada       Jornada  @relation(fields: [jornadaId], references: [id])
+  corrida       Corrida? @relation(fields: [corridaId], references: [id])
+  registradoPor Usuario? @relation(fields: [criadoPor], references: [id])
+
+  @@index([jornadaId])
+  @@index([tipo, ocorridoEm])
+  @@map("ocorrencia")
+}
+
+/// Could Have (US024).
+model Abastecimento {
+  id           String   @id @default(uuid()) @db.Uuid
+  jornadaId    String   @map("jornada_id") @db.Uuid
+  veiculoId    String   @map("veiculo_id") @db.Uuid
+  abastecidoEm DateTime @map("abastecido_em") @db.Timestamptz(6)
+  litros       Decimal  @db.Decimal(7, 2)
+  valorTotal   Decimal? @map("valor_total") @db.Decimal(12, 2)
+  odometro     Int
+  posto        String?  @db.VarChar(120)
+
+  tipoCombustivel TipoCombustivel @default(DIESEL) @map("tipo_combustivel")
+  /// Nulo em registros antigos: não se presume que o tanque foi completado.
+  tanqueCheio     Boolean?        @map("tanque_cheio")
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornada Jornada @relation(fields: [jornadaId], references: [id])
+  veiculo Veiculo @relation(fields: [veiculoId], references: [id])
+
+  @@index([veiculoId, abastecidoEm])
+  @@map("abastecimento")
+}
+
+/// Pedágio pago no dia de trabalho. Entra no boletim de medição do período.
+model Pedagio {
+  id             String                @id @default(uuid()) @db.Uuid
+  jornadaId      String                @map("jornada_id") @db.Uuid
+  veiculoId      String                @map("veiculo_id") @db.Uuid
+  pagoEm         DateTime              @map("pago_em") @db.Timestamptz(6)
+  valor          Decimal               @db.Decimal(10, 2)
+  praca          String?               @db.VarChar(120)
+  formaPagamento FormaPagamentoPedagio @default(DINHEIRO) @map("forma_pagamento")
+
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  criadoPor     String?  @map("criado_por") @db.Uuid
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  jornada Jornada @relation(fields: [jornadaId], references: [id])
+  veiculo Veiculo @relation(fields: [veiculoId], references: [id])
+
+  @@index([veiculoId, pagoEm])
+  @@index([jornadaId])
+  @@map("pedagio")
+}
+
+// ------------------------------------------------------- arquivos e integrações
+
+model Arquivo {
+  id                 String      @id @default(uuid()) @db.Uuid
+  tipo               TipoArquivo
+  nomeOriginal       String      @map("nome_original") @db.VarChar(240)
+  /// Caminho no storage. Nunca exposto ao cliente (RN030).
+  chaveArmazenamento String      @map("chave_armazenamento") @db.VarChar(400)
+  mimeType           String      @map("mime_type") @db.VarChar(120)
+  tamanhoBytes       BigInt      @map("tamanho_bytes")
+  hashSha256         String?     @map("hash_sha256") @db.Char(64)
+  /// Filtros usados na geração — permite reproduzir o relatório (RN030).
+  parametros         Json?
+  geradoPor          String?     @map("gerado_por") @db.Uuid
+  expiraEm           DateTime?   @map("expira_em") @db.Timestamptz(6)
+  criadoEm           DateTime    @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  autor        Usuario?           @relation(fields: [geradoPor], references: [id])
+  importacoes  Importacao[]
+  notificacoes Notificacao[]
+  exportacoes  TarefaExportacao[]
+
+  @@index([tipo, criadoEm])
+  @@index([geradoPor])
+  @@map("arquivo")
+}
+
+model Importacao {
+  id           String                @id @default(uuid()) @db.Uuid
+  arquivoId    String                @map("arquivo_id") @db.Uuid
+  tipoDestino  TipoDestinoImportacao @map("tipo_destino")
+  linhasTotal  Int                   @default(0) @map("linhas_total")
+  linhasOk     Int                   @default(0) @map("linhas_ok")
+  linhasErro   Int                   @default(0) @map("linhas_erro")
+  /// Erros por linha (RN032).
+  resultado    Json?
+  status       StatusImportacao      @default(PROCESSANDO)
+  executadoPor String                @map("executado_por") @db.Uuid
+
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  arquivo Arquivo @relation(fields: [arquivoId], references: [id])
+  autor   Usuario @relation(fields: [executadoPor], references: [id])
+
+  @@index([status, criadoEm])
+  @@map("importacao")
+}
+
+/// Exportação grande admitida para processamento em segundo plano (US031 · RF031).
+///
+/// A tabela **é** a fila. O processo web só insere a linha — dentro da mesma
+/// transação que audita o pedido —, e o agendador a reclama depois. Enfileirar
+/// no pg-boss a partir do servidor do Next obrigaria o processo que atende os
+/// motoristas a manter uma conexão de fila aberta e permitiria o pior estado
+/// possível: tarefa na fila e transação desfeita, com um trabalho órfão que
+/// ninguém pediu.
+model TarefaExportacao {
+  id      String         @id @default(uuid()) @db.Uuid
+  tipo    TipoExportacao
+  /// Filtros **efetivos**, com o escopo do solicitante já aplicado (RN008).
+  /// Não são os filtros pedidos: o motorista não digita o próprio id, mas o
+  /// recorte é dele, e é este objeto que a aba de identificação descreve.
+  filtros Json
+  status  StatusTarefa   @default(PENDENTE)
+
+  /// Contagem feita na admissão, que é o que decide síncrono × segundo plano.
+  /// A planilha pode sair com outro número — o período segue recebendo
+  /// registros enquanto a tarefa espera —, e por isso o gerado é gravado à
+  /// parte em vez de sobrescrever o previsto.
+  linhasPrevistas Int  @map("linhas_previstas")
+  linhasGeradas   Int? @map("linhas_geradas")
+
+  arquivoId     String? @map("arquivo_id") @db.Uuid
+  solicitadoPor String  @map("solicitado_por") @db.Uuid
+  tentativas    Int     @default(0) @db.SmallInt
+  erro          String? @db.Text
+
+  iniciadaEm   DateTime? @map("iniciada_em") @db.Timestamptz(6)
+  concluidaEm  DateTime? @map("concluida_em") @db.Timestamptz(6)
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  arquivo     Arquivo? @relation(fields: [arquivoId], references: [id])
+  solicitante Usuario  @relation(fields: [solicitadoPor], references: [id])
+
+  /// A reclamação da próxima tarefa varre por status em ordem de chegada.
+  @@index([status, criadoEm])
+  @@index([solicitadoPor, criadoEm])
+  @@map("tarefa_exportacao")
+}
+
+model Notificacao {
+  id                    String            @id @default(uuid()) @db.Uuid
+  canal                 CanalNotificacao
+  tipo                  TipoNotificacao
+  destinatarioUsuarioId String?           @map("destinatario_usuario_id") @db.Uuid
+  destinatarioTelefone  String?           @map("destinatario_telefone") @db.VarChar(20)
+  conteudo              String            @db.Text
+  arquivoId             String?           @map("arquivo_id") @db.Uuid
+  referenciaTipo        String?           @map("referencia_tipo") @db.VarChar(40)
+  referenciaId          String?           @map("referencia_id") @db.Uuid
+  /// Referência que **não é um uuid** — hoje a data operacional do alerta de
+  /// pendências (US038). É por ela que a rotina reconhece que já cobrou o dia.
+  referenciaChave       String?           @map("referencia_chave") @db.VarChar(60)
+  status                StatusNotificacao @default(PENDENTE)
+  tentativas            Int               @default(0) @db.SmallInt
+  ultimoErro            String?           @map("ultimo_erro") @db.Text
+  enviadaEm             DateTime?         @map("enviada_em") @db.Timestamptz(6)
+
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  destinatario Usuario? @relation(fields: [destinatarioUsuarioId], references: [id])
+  arquivo      Arquivo? @relation(fields: [arquivoId], references: [id])
+
+  @@index([status, criadoEm])
+  @@index([destinatarioUsuarioId])
+  @@index([tipo, referenciaChave])
+  @@map("notificacao")
+}
+
+// --------------------------------------------------------------- sincronização
+
+/// Livro-razão da sincronização offline (RN025).
+///
+/// A chave primária **é** o identificador gerado no aparelho: reenviar a mesma
+/// operação colide na PK em vez de gravar duas vezes, e a garantia fica no
+/// banco, não na disciplina do caso de uso.
+///
+/// As colunas `client_uuid` de jornada, corrida e evento continuam existindo e
+/// não são redundantes: elas resolvem a **referência** (o encerramento aponta
+/// para uma corrida que o servidor ainda não conhecia), enquanto esta tabela
+/// resolve a **repetição** — inclusive de operações que só atualizam, e que por
+/// isso não têm uma linha nova onde carimbar o identificador.
+model OperacaoSincronizada {
+  /// Identificador gerado no aparelho, antes de existir qualquer id do servidor.
+  clientUuid String              @id @map("client_uuid") @db.Uuid
+  usuarioId  String              @map("usuario_id") @db.Uuid
+  tipo       TipoOperacaoOffline
+  /// Relógio do aparelho no momento do registro — define a ordem de aplicação.
+  ocorridoEm DateTime            @map("ocorrido_em") @db.Timestamptz(6)
+  /// Entidade resultante, para o cliente saber a que registro a operação levou.
+  entidade   String              @db.VarChar(40)
+  entidadeId String?             @map("entidade_id") @db.Uuid
+  aplicadaEm DateTime            @default(now()) @map("aplicada_em") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, ocorridoEm])
+  @@map("operacao_sincronizada")
+}
+
+// ------------------------------------------------------------------ auditoria
+
+/// Trilha imutável (RN026, RN027). O usuário da aplicação no banco não recebe
+/// permissão de UPDATE/DELETE nesta tabela — ver a migração inicial.
+model LogAuditoria {
+  id            BigInt        @id @default(autoincrement())
+  usuarioId     String?       @map("usuario_id") @db.Uuid
+  acao          AcaoAuditoria
+  entidade      String        @db.VarChar(60)
+  entidadeId    String?       @map("entidade_id") @db.VarChar(60)
+  /// Apenas os campos alterados — não o registro inteiro.
+  valorAnterior Json?         @map("valor_anterior")
+  valorNovo     Json?         @map("valor_novo")
+  justificativa String?       @db.Text
+  ip            String?       @db.VarChar(45)
+  userAgent     String?       @map("user_agent") @db.VarChar(300)
+  ocorridoEm    DateTime      @default(now()) @map("ocorrido_em") @db.Timestamptz(6)
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidade, entidadeId, ocorridoEm])
+  @@index([usuarioId, ocorridoEm])
+  @@index([ocorridoEm])
+  @@map("log_auditoria")
+}
+
+// --------------------------------------------------------------- configuração
+
+model Configuracao {
+  chave         String   @id @db.VarChar(60)
+  valor         Json
+  descricao     String   @db.VarChar(240)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  @@map("configuracao")
+}

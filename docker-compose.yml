@@ -1,0 +1,171 @@
+# =============================================================================
+# Bordo — produção (US046 · doc 13)
+#
+#   caddy      TLS automático e proxy reverso
+#   app        Next.js
+#   agendador  rotinas diárias (AD-9) — mesma imagem, outro comando
+#   banco      PostgreSQL 16
+#   migrador   passo avulso do deploy, não sobe sozinho
+#
+# Subir:     docker compose --env-file .env.producao up -d
+# Migrar:    docker compose --env-file .env.producao run --rm migrador
+# Ver o log: docker compose logs -f app
+#
+# O arquivo `.env.producao` **não é versionado** (RNF005). Use
+# `.env.producao.example` como modelo.
+# =============================================================================
+
+name: bordo
+
+x-imagem: &imagem
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: bordo:${VERSAO:-latest}
+
+x-ambiente: &ambiente
+  NODE_ENV: production
+  APP_AMBIENTE: ${APP_AMBIENTE:?defina APP_AMBIENTE}
+  APP_URL: ${APP_URL:?defina APP_URL}
+  TZ: ${TZ:-America/Sao_Paulo}
+  DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@banco:5432/${POSTGRES_DB:?}?schema=public
+  # Migrações. Aqui o banco é do próprio compose e não há pooler, então é a
+  # mesma string — a separação existe para a hospedagem gerenciada.
+  DIRECT_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@banco:5432/${POSTGRES_DB:?}?schema=public
+  SESSAO_SECRET: ${SESSAO_SECRET:?defina SESSAO_SECRET}
+  STORAGE_DRIVER: local
+  STORAGE_PATH: /dados/storage
+  WHATSAPP_CANAL: ${WHATSAPP_CANAL:-link}
+  WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+  WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+  WHATSAPP_TEMPLATE_RESUMO: ${WHATSAPP_TEMPLATE_RESUMO:-}
+  MAPA_TILES_URL: ${MAPA_TILES_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+  GEOCODIFICACAO_URL: ${GEOCODIFICACAO_URL:-https://nominatim.openstreetmap.org/reverse}
+  LOG_NIVEL: ${LOG_NIVEL:-info}
+
+services:
+  banco:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - dados-do-banco:/var/lib/postgresql/data
+    # Sem `ports`: o banco só é alcançável pela rede interna do compose. Expor
+    # 5432 na internet é o caminho mais curto para um incidente.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [interna]
+
+  app:
+    <<: *imagem
+    restart: unless-stopped
+    # PID 1 de verdade, encaminhando SIGTERM. Sem isto o encerramento elegante
+    # não acontece — e no agendador uma tarefa em curso morreria no meio.
+    init: true
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment: *ambiente
+    volumes:
+      - arquivos-gerados:/dados/storage
+    # As duas redes: `interna` para falar com o banco, `externa` para **sair** —
+    # a geocodificação reversa e a Cloud API do WhatsApp são chamadas de saída
+    # feitas pelo servidor. Só com `interna` elas falhariam por tempo limite.
+    networks: [interna, externa]
+
+  agendador:
+    <<: *imagem
+    restart: unless-stopped
+    init: true
+    command: ['node', 'agendador.mjs']
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment: *ambiente
+    volumes:
+      - arquivos-gerados:/dados/storage
+    # Compartilha o volume com a aplicação **de propósito**: o consolidado
+    # diário é gravado por este processo e baixado pela aplicação. Se cada um
+    # tivesse o seu, o download responderia 410 para todo arquivo automático.
+    #
+    # Uma réplica, sempre. Duas gerariam a planilha do dia em duplicidade.
+    deploy:
+      replicas: 1
+    networks: [interna, externa]
+
+  migrador:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrador
+    profiles: [manutencao]
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment: *ambiente
+    networks: [interna]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO}
+      EMAIL_ACME: ${EMAIL_ACME:?defina EMAIL_ACME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-dados:/data
+      - caddy-config:/config
+    networks: [interna, externa]
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment:
+      PGHOST: banco
+      PGUSER: ${POSTGRES_USER:?}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGDATABASE: ${POSTGRES_DB:?}
+      RETENCAO_DIAS: ${BACKUP_RETENCAO_DIAS:-14}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+      - ./scripts/restaurar.sh:/usr/local/bin/restaurar.sh:ro
+      - copias-de-seguranca:/backups
+    # Laço próprio em vez de cron: o contêiner tem um processo só, o log vai
+    # para o `docker compose logs` como o de todo mundo, e não há um segundo
+    # sistema de agendamento para alguém esquecer que existe.
+    entrypoint: ['/bin/sh', '-c', 'while true; do /usr/local/bin/backup.sh; sleep 86400; done']
+    networks: [interna]
+
+volumes:
+  dados-do-banco:
+  arquivos-gerados:
+  copias-de-seguranca:
+  caddy-dados:
+  caddy-config:
+
+networks:
+  # `interna` é fechada (`internal: true`): quem está só nela não alcança a
+  # internet nem é alcançável por ela. É onde o **banco** e o **backup** vivem,
+  # e é o que dispensa expor a porta 5432.
+  #
+  # `externa` é a rede comum: dá entrada ao Caddy e saída à aplicação e ao
+  # agendador, que precisam chamar serviços de terceiros.
+  interna:
+    internal: true
+  externa:
