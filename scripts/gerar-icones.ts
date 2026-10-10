@@ -10,8 +10,9 @@ import sharp from 'sharp';
  *
  * Os PNGs são **versionados** no repositório; este script existe para que eles
  * tenham uma fonte, e não sejam binários que ninguém sabe de onde vieram nem
- * como refazer. A geometria é a de `src/componentes/marca/marca-bordo.tsx`,
- * em escala 8× — mudar lá é mudar aqui também.
+ * como refazer. A geometria é a de `src/componentes/marca/marca-bordo.tsx`
+ * (a van de frente) — mudar lá é mudar aqui também. Até 48 px vale um desenho
+ * simplificado, sem faróis nem grade, que no tamanho da aba virariam borrão.
  *
  * O `maskable` não tem cantos arredondados — é o sistema que recorta, em
  * círculo no Android — e a arte cabe no círculo central de 80%, a zona segura
@@ -21,15 +22,19 @@ import sharp from 'sharp';
 const RAIZ = process.cwd();
 const DESTINO_ICONES = join(RAIZ, 'public', 'icons');
 
-/** Cor primária do tema claro (`--color-primaria` em `globals.css`). */
-const PRIMARIA = '#1d4ed8';
+const ROXO = '#7c3aed';
+const ROXO_CLARO = '#c4b5fd';
+const BRANCO = '#ffffff';
+
+/** Tamanho a partir do qual os detalhes da van aparecem. */
+const TAMANHO_COM_DETALHES = 64;
 
 interface Icone {
   arquivo: string;
   tamanho: number;
   /** Raio dos cantos no quadro de 512; zero quando o sistema recorta. */
   cantos: number;
-  /** Escala do trajeto dentro do quadro; menor que 1 afasta a arte das bordas. */
+  /** Escala da van dentro do quadro; menor que 1 afasta a arte das bordas. */
   escala: number;
 }
 
@@ -46,22 +51,41 @@ const ICONES: Icone[] = [
   { arquivo: 'apple-touch-icon.png', tamanho: 180, cantos: 0, escala: 0.9 },
 ];
 
-/** A marca num quadro de 512, com o trajeto escalado a partir do centro. */
-function svgDaMarca({ cantos, escala }: Pick<Icone, 'cantos' | 'escala'>): Buffer {
-  const deslocamento = 256 * (1 - escala);
+/** A van no quadro de 64 de `marca-bordo.tsx`, completa ou simplificada. */
+function desenhoDaVan(simplificada: boolean): string {
+  if (simplificada) {
+    return (
+      `<rect x="11" y="10" width="42" height="38" rx="9" fill="${BRANCO}"/>` +
+      `<rect x="16" y="15" width="32" height="14" rx="4" fill="${ROXO}"/>` +
+      `<rect x="13" y="46" width="11" height="8" rx="3" fill="${BRANCO}"/>` +
+      `<rect x="40" y="46" width="11" height="8" rx="3" fill="${BRANCO}"/>`
+    );
+  }
+  return (
+    `<rect x="14" y="13" width="36" height="33" rx="8" fill="${BRANCO}"/>` +
+    `<rect x="18" y="17" width="28" height="12" rx="3" fill="${ROXO}"/>` +
+    `<circle cx="21" cy="38" r="3" fill="${ROXO}"/>` +
+    `<circle cx="43" cy="38" r="3" fill="${ROXO}"/>` +
+    `<rect x="28" y="36" width="8" height="4" rx="2" fill="${ROXO_CLARO}"/>` +
+    `<rect x="16" y="46" width="8" height="6" rx="2" fill="${BRANCO}"/>` +
+    `<rect x="40" y="46" width="8" height="6" rx="2" fill="${BRANCO}"/>`
+  );
+}
+
+/** A marca no tamanho pedido, com a van escalada a partir do centro. */
+function svgDaMarca({ tamanho, cantos, escala }: Omit<Icone, 'arquivo'>): Buffer {
+  const deslocamento = 32 * (1 - escala);
   return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">` +
-      `<rect width="512" height="512" rx="${cantos}" fill="${PRIMARIA}"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${tamanho}" height="${tamanho}" viewBox="0 0 64 64">` +
+      `<rect width="64" height="64" rx="${cantos / 8}" fill="${ROXO}"/>` +
       `<g transform="translate(${deslocamento} ${deslocamento}) scale(${escala})">` +
-      `<path d="M144 368 C144 256, 368 272, 368 144" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round"/>` +
-      `<circle cx="144" cy="368" r="40" fill="#ffffff"/>` +
-      `<circle cx="368" cy="144" r="48" fill="${PRIMARIA}" stroke="#ffffff" stroke-width="32"/>` +
+      desenhoDaVan(tamanho < TAMANHO_COM_DETALHES) +
       `</g></svg>`,
   );
 }
 
 async function montarIcone(icone: Omit<Icone, 'arquivo'>): Promise<Buffer> {
-  return sharp(svgDaMarca(icone), { density: 72 * (icone.tamanho / 512) * 4 })
+  return sharp(svgDaMarca(icone), { density: 72 * 4 })
     .resize(icone.tamanho, icone.tamanho, { kernel: 'lanczos3' })
     .png({ compressionLevel: 9 })
     .toBuffer();
