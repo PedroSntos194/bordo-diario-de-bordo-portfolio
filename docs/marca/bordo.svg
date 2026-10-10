@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="128" height="128" role="img" aria-label="Bordo">
+  <rect width="64" height="64" rx="14" fill="#7c3aed"/>
+  <rect x="14" y="13" width="36" height="33" rx="8" fill="#ffffff"/>
+  <rect x="18" y="17" width="28" height="12" rx="3" fill="#7c3aed"/>
+  <circle cx="21" cy="38" r="3" fill="#7c3aed"/>
+  <circle cx="43" cy="38" r="3" fill="#7c3aed"/>
+  <rect x="28" y="36" width="8" height="4" rx="2" fill="#c4b5fd"/>
+  <rect x="16" y="46" width="8" height="6" rx="2" fill="#ffffff"/>
+  <rect x="40" y="46" width="8" height="6" rx="2" fill="#ffffff"/>
+</svg>

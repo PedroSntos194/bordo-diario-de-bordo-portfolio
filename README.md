@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/marca/bordo.svg" alt="Logo do Bordo: uma van roxa vista de frente" width="112">
+</p>
+
 # Bordo — Diário de Bordo Digital
 
 [English version](README.en.md)

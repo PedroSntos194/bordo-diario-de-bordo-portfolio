@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/marca/bordo.svg" alt="Bordo logo: a purple van seen from the front" width="112">
+</p>
+
 # Bordo — Digital Logbook for Van Fleets
 
 [Versão em português](README.md)
