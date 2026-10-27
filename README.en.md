@@ -28,8 +28,13 @@ who use it. This page is the English overview.
 
 ## Presenting the project
 
-With the development server running, open [the showcase](http://localhost:3000/apresentacao).
-It explains the problem and includes a browser-only simulation with fictional data: open a shift,
+Open the [published portfolio](https://bordo-diario-de-bordo-portfolio.vercel.app) or run
+`npm run preview:portfolio` after installing dependencies to use the same showcase locally at
+<http://localhost:3001>. This command builds and serves the portfolio without `.env`, PostgreSQL
+or login. An old `/login` URL redirects to the interactive demo. `npm run dev` runs the complete
+application and requires the environment and database setup described below.
+
+The showcase explains the problem and includes a browser-only simulation with fictional data: open a shift,
 record a trip and simulate a signal interruption while watching the back-office view update.
 The simulation does not create real records or require a prepared database. The full application
 still requires PostgreSQL, migrations and demo data as described below.

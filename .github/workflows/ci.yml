@@ -49,6 +49,9 @@ jobs:
       - name: Testes
         run: npm test
 
+      - name: Prévia local do portfólio
+        run: npm run test:preview
+
       - name: Build
         run: npm run build
         env:

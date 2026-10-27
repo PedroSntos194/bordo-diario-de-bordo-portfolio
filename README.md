@@ -25,17 +25,28 @@ medição por contrato) e exporta tudo para Excel.
 
 ## Apresentar o projeto
 
-Com o servidor iniciado, abra [a apresentação](http://localhost:3000/apresentacao). A página explica
-o problema e reúne uma demonstração com dados fictícios no navegador, sem gravar na operação.
-Ela pode ser usada para apresentar o produto sem cadastrar usuários ou preparar jornadas.
-Visitantes sem sessão também chegam à apresentação ao abrir a raiz do projeto; quem já entrou
-continua sendo encaminhado à área do seu perfil.
+Abra o [portfólio publicado](https://bordo-diario-de-bordo-portfolio.vercel.app) para apresentar
+o projeto e experimentar a demonstração com dados fictícios, sem cadastrar usuários ou preparar
+jornadas. Para abrir a mesma versão no seu computador:
+
+```bash
+npm ci
+npm run preview:portfolio
+```
+
+Acesse <http://localhost:3001>. A prévia gera e serve somente a apresentação e a demonstração,
+sem `.env`, PostgreSQL ou login. Nela, um endereço antigo como `/login` leva à demonstração.
+O comando `npm run dev` é destinado ao **sistema completo**: para usá-lo, configure o ambiente
+e o banco seguindo a seção [Como rodar a demonstração](#como-rodar-a-demonstração).
 
 O site público de portfólio publica apenas a apresentação e a demonstração interativa. Para
 gerar essa versão, execute `npm run build:portfolio`; os arquivos ficam em
 `output/portfolio-build/out`. Ela não exige banco, login ou variáveis de ambiente. O `vercel.json`
 deste repositório usa esse build estático, sem APIs e sem rotinas agendadas. O botão **Ver código**
 leva ao repositório. Para executar o sistema completo localmente, siga as instruções abaixo.
+
+No sistema completo, visitantes sem sessão chegam à apresentação ao abrir a raiz; quem já entrou
+continua sendo encaminhado à área do seu perfil.
 
 O [roteiro de 5 a 7 minutos](docs/37-roteiro-de-apresentacao.md) sugere a ordem da demonstração,
 as decisões técnicas a destacar e os limites a explicar. Para conhecer a operação completa, com
