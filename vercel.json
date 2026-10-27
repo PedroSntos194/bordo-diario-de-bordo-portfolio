@@ -1,10 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["gru1"],
-  "crons": [
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build:portfolio",
+  "outputDirectory": "output/portfolio-build/out",
+  "cleanUrls": true,
+  "headers": [
     {
-      "path": "/api/cron",
-      "schedule": "0 * * * *"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
     }
   ]
 }

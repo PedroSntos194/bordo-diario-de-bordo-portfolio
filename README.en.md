@@ -37,6 +37,12 @@ still requires PostgreSQL, migrations and demo data as described below.
 The [5–7 minute presentation guide](docs/37-roteiro-de-apresentacao.md) covers preparation,
 the demonstration sequence, engineering decisions and limitations (in Portuguese).
 
+The public portfolio deploys only this showcase and interactive demo. Run `npm run build:portfolio`
+to generate `output/portfolio-build/out` without a database, login or environment variables.
+This repository's `vercel.json` deploys that static output, with no API or scheduled jobs.
+The **Ver código** button links to the source. The complete application remains available locally
+using the setup below.
+
 ## Screens
 
 **Back office** — live dashboard and monthly closing:

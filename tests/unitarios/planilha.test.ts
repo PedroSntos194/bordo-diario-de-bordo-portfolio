@@ -1,9 +1,13 @@
-import { readdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { access, mkdtemp } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { COLUNAS_DE_JORNADA, type LinhaDeJornada } from '@/modulos/exportacao/exportacao.regras';
 import { gerarPlanilha, gerarPlanilhaEmFluxo } from '@/modulos/exportacao/planilha';
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...original, mkdtemp: vi.fn(original.mkdtemp) };
+});
 
 /**
  * US032 e US033 — o arquivo gerado, lido de volta.
@@ -224,8 +228,9 @@ describe('gerarPlanilhaEmFluxo', () => {
 
   it('não deixa o arquivo temporário para trás', async () => {
     // Cada tentativa frustrada deixaria uma planilha parcial no disco do
-    // servidor — e a que falha é justamente a grande.
-    const antes = await readdir(tmpdir());
+    // servidor — e a que falha é justamente a grande. Outras suítes também
+    // exportam em paralelo: conferimos só a pasta criada por esta chamada.
+    const criacoesAntes = vi.mocked(mkdtemp).mock.results.length;
 
     await gerarPlanilhaEmFluxo({
       identificacao: IDENTIFICACAO,
@@ -233,12 +238,10 @@ describe('gerarPlanilhaEmFluxo', () => {
       paginas: umaPagina([JORNADA]),
     });
 
-    const depois = await readdir(tmpdir());
-    const sobraram = depois.filter(
-      (entrada) => entrada.startsWith('bordo-exportacao-') && !antes.includes(entrada),
-    );
-
-    expect(sobraram).toEqual([]);
+    const criacoes = vi.mocked(mkdtemp).mock.results.slice(criacoesAntes);
+    expect(criacoes).toHaveLength(1);
+    const pasta = await criacoes[0]!.value;
+    await expect(access(pasta)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('varre as páginas sob demanda, não todas de uma vez', async () => {

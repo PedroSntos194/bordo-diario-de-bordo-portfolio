@@ -84,6 +84,8 @@ const fundamentos = [
 ];
 
 export default function PaginaDeApresentacao() {
+  const apenasPortfolio = process.env.BORDO_APRESENTACAO_PUBLICA === 'true';
+
   return (
     <RevelarAoRolar className={estilos.pagina}>
       <a className={estilos.pularConteudo} href="#conteudo">
@@ -109,8 +111,18 @@ export default function PaginaDeApresentacao() {
             <a href="#engenharia">Engenharia</a>
           </nav>
 
-          <Link className={estilos.entrar} href="/login">
-            Entrar no sistema <ArrowUpRight size={16} aria-hidden="true" />
+          <Link
+            className={estilos.entrar}
+            href={
+              apenasPortfolio
+                ? 'https://github.com/PedroSntos194/bordo-diario-de-bordo-portfolio'
+                : '/login'
+            }
+            target={apenasPortfolio ? '_blank' : undefined}
+            rel={apenasPortfolio ? 'noreferrer' : undefined}
+          >
+            {apenasPortfolio ? 'Ver código' : 'Entrar no sistema'}{' '}
+            <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
         </div>
       </header>

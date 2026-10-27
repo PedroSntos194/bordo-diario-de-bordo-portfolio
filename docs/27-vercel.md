@@ -1,5 +1,11 @@
 # 27 · Publicação na Vercel
 
+> **Site público de portfólio:** o `vercel.json` deste repositório executa
+> `npm run build:portfolio` e publica somente a apresentação com a demonstração em memória,
+> sem banco, APIs, login ou cron. As instruções a seguir descrevem a alternativa de hospedar o
+> **sistema completo**: ela exige um projeto próprio com framework Next.js, build `npm run build`,
+> saída padrão do framework e cron `0 * * * *` apontando para `/api/cron`, além dos serviços abaixo.
+
 > Substitui, **para o ambiente publicado**, o runbook de contêiner do
 > [doc 24](24-implantacao.md). Aquele continua válido e testado — é a porta de
 > saída, se um dia a operação voltar para servidor próprio.
