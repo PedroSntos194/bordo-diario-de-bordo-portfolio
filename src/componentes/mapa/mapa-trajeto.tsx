@@ -36,7 +36,7 @@ interface Propriedades {
 function corDoPonto(indice: number, total: number): string {
   if (indice === 0) return '#15803d';
   if (indice === total - 1) return '#b91c1c';
-  return '#1e3a5f';
+  return '#7c3aed';
 }
 
 export function MapaTrajeto({ pontos }: Propriedades) {
@@ -163,7 +163,7 @@ export function MapaTrajeto({ pontos }: Propriedades) {
               type: 'line',
               source: 'trajeto',
               layout: { 'line-join': 'round', 'line-cap': 'round' },
-              paint: { 'line-color': '#1e3a5f', 'line-width': 3, 'line-opacity': 0.7 },
+              paint: { 'line-color': '#7c3aed', 'line-width': 3, 'line-opacity': 0.7 },
             });
           }
 

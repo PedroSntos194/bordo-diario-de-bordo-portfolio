@@ -70,8 +70,8 @@ segurança — sempre com o mesmo esquema Zod, compartilhado entre as duas ponta
 - Componentes interativos (formulários, mapa, cronômetro, fila offline) são Client Components isolados.
 - **PWA**: manifesto + service worker com cache dos recursos estáticos e fila de sincronização em
   IndexedDB para as ações offline (RF022).
-- Estado de servidor via TanStack Query nas telas que precisam de revalidação e otimismo controlado;
-  o restante usa o próprio ciclo do App Router.
+- Os dados usam o ciclo do App Router e as Server Actions. Painéis que precisam de atualização
+  periódica usam `router.refresh()` com a aba visível; formulários mantêm seu estado local em React.
 
 ## Backend
 

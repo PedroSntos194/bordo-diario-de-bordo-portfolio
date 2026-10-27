@@ -23,7 +23,7 @@ export const ROTULO_DO_TEMA: Record<Tema, string> = {
 };
 
 /** Cor da barra do navegador e do sistema, igual ao `--color-fundo` de cada tema. */
-export const COR_DA_BARRA = { escuro: '#0f1115', claro: '#ffffff' } as const;
+export const COR_DA_BARRA = { escuro: '#130b20', claro: '#fbf8ff' } as const;
 
 export function lerTema(valor: string | null | undefined): Tema {
   return (TEMAS as readonly string[]).includes(valor ?? '') ? (valor as Tema) : TEMA_PADRAO;

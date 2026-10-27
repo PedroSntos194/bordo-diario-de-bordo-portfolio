@@ -21,7 +21,20 @@ medição por contrato) e exporta tudo para Excel.
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma)
-![Testes](https://img.shields.io/badge/testes-829%20unit%C3%A1rios-2ea44f)
+![Testes](https://img.shields.io/badge/testes-837%20unit%C3%A1rios-2ea44f)
+
+## Apresentar o projeto
+
+Com o servidor iniciado, abra [a apresentação](http://localhost:3000/apresentacao). A página explica
+o problema e reúne uma demonstração com dados fictícios no navegador, sem gravar na operação.
+Ela pode ser usada para apresentar o produto sem cadastrar usuários ou preparar jornadas.
+Visitantes sem sessão também chegam à apresentação ao abrir a raiz do projeto; quem já entrou
+continua sendo encaminhado à área do seu perfil.
+
+O [roteiro de 5 a 7 minutos](docs/37-roteiro-de-apresentacao.md) sugere a ordem da demonstração,
+as decisões técnicas a destacar e os limites a explicar. Para conhecer a operação completa, com
+login, persistência, sincronização e exportações reais, siga [Como rodar a demonstração](#como-rodar-a-demonstração):
+esse fluxo exige PostgreSQL, migrações e o seed fictício.
 
 ## Telas
 
@@ -96,7 +109,7 @@ confirma o que a máquina não sabe — odômetro, passageiros e ocorrências.
   porquê de não ter backend separado está em [`docs/13`](docs/13-arquitetura.md).
 - **Toda mutação passa pelo mesmo funil:** [`definirAcao`](src/lib/acao-segura.ts) faz sessão →
   permissão → validação → transação → auditoria. Não existe escrita fora dele.
-- **Regras de negócio puras e testadas:** 829 testes unitários com Vitest, mais suítes HTTP ponta a
+- **Regras de negócio puras e testadas:** 837 testes unitários com Vitest, mais suítes HTTP ponta a
   ponta que sobem um PostgreSQL descartável e exercitam o sistema com sessões reais.
 - **Concorrência garantida no banco**, não só no código: índices parciais impedem duas jornadas
   abertas na mesma van, duas corridas em andamento na mesma jornada ou dois dias para o mesmo
@@ -112,7 +125,7 @@ confirma o que a máquina não sabe — odômetro, passageiros e ocorrências.
 - **Dois caminhos de implantação documentados e testados:** contêiner (Docker Compose + Caddy com
   TLS automático e rotinas agendadas com pg-boss) e Vercel + Neon (com Vercel Cron), além de backup
   criptografado com ensaio de restauração.
-- **Documentação de produto e engenharia:** 31 documentos, de requisitos e regras de negócio a
+- **Documentação de produto e engenharia:** 32 documentos, de requisitos e regras de negócio a
   arquitetura, API, segurança e LGPD, com rastreabilidade
   `requisito → regra → user story → tela → endpoint → teste`.
 
@@ -154,6 +167,10 @@ npx prisma migrate deploy
 npm run seed:demo
 npm run dev
 ```
+
+Para processar exportações com mais de 5.000 registros e executar as rotinas automáticas locais,
+inicie também `npm run agendador` em outro terminal. O servidor web e o agendador são processos
+separados.
 
 O `seed:demo` cria uma transportadora inventada: uma administradora, sete motoristas, seis vans com
 contrato, três linhas de ida e volta e oito semanas de operação. O dia de hoje fica em andamento,
@@ -214,6 +231,7 @@ Roda o mesmo que a CI: formatação, lint, tipos e os testes unitários.
 | 31 | [Medição da exportação](docs/31-medicao-exportacao.md) | Desempenho do Excel com até 200 mil linhas |
 | 35 | [Fechamento mensal](docs/35-fechamento-mensal.md) | Hora extra, km excedente e boletim de medição |
 | 36 | [Reabertura do dia](docs/36-reabertura-do-dia.md) | Reabrir um dia encerrado antes da hora |
+| 37 | [Roteiro de apresentação](docs/37-roteiro-de-apresentacao.md) | Demonstração de 5 a 7 minutos, preparação e limites |
 
 ## Sobre esta versão
 

@@ -41,7 +41,7 @@ const NOME_COOKIE_SESSAO = 'bordo_sessao';
  * handler existir, e o cron nunca rodaria. Descoberto chamando a URL — não
  * aparece em teste unitário nem no build.
  */
-const ROTAS_PUBLICAS = ['/login', '/api/auth/login', '/api/health', '/api/cron'];
+const ROTAS_PUBLICAS = ['/login', '/apresentacao', '/api/auth/login', '/api/health', '/api/cron'];
 
 /** Arquivos e rotas internas que o middleware não deve interceptar. */
 const PREFIXOS_IGNORADOS = ['/_next', '/favicon.ico', '/icons', '/manifest.webmanifest'];
@@ -132,6 +132,12 @@ export function middleware(requisicao: NextRequest): NextResponse {
   }
 
   if (!temSessao) {
+    // A versão de portfólio apresenta o produto a quem chega sem sessão.
+    // A operação continua acessível pelo login e pelo atalho instalado em /app.
+    if (pathname === '/') {
+      return comPolitica(NextResponse.redirect(new URL('/apresentacao', requisicao.url)));
+    }
+
     // Rotas de API respondem 401; telas redirecionam preservando o destino.
     if (pathname.startsWith('/api/')) {
       return comPolitica(

@@ -14,9 +14,9 @@ import { useEffect, useState } from 'react';
  * fronteira servidor→cliente serializados.
  */
 export function Cronometro({ desdeIso }: { desdeIso: string }) {
-  const [segundos, setSegundos] = useState(() =>
-    Math.max(0, Math.floor((Date.now() - new Date(desdeIso).getTime()) / 1000)),
-  );
+  // Servidor e primeira renderização no cliente precisam mostrar o mesmo valor.
+  // O tempo real é calculado após a montagem para evitar falha de hidratação.
+  const [segundos, setSegundos] = useState(0);
 
   useEffect(() => {
     const inicio = new Date(desdeIso).getTime();

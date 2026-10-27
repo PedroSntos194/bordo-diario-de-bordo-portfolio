@@ -1,0 +1,169 @@
+.login {
+  background: var(--color-fundo);
+}
+
+.vitrine {
+  isolation: isolate;
+  background: linear-gradient(145deg, #210d3f 0%, #4c1d95 52%, #6d28d9 100%);
+}
+
+.vitrine::before,
+.vitrine::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.vitrine::before {
+  width: 550px;
+  height: 550px;
+  top: -240px;
+  right: -230px;
+  background: radial-gradient(circle, #c084fc55, transparent 68%);
+}
+
+.vitrine::after {
+  width: 440px;
+  height: 440px;
+  left: -220px;
+  bottom: -140px;
+  background: radial-gradient(circle, #a78bfa40, transparent 70%);
+}
+
+.orbita::before,
+.orbitaInterna::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c4b5fd;
+  box-shadow: 0 0 24px #c4b5fdaa;
+}
+
+.marca svg {
+  transition: transform 250ms ease;
+  box-shadow: 0 8px 30px #1e0b3a30;
+  border-radius: 12px;
+}
+
+.marca:hover svg {
+  transform: rotate(-6deg) scale(1.05);
+}
+
+.mensagem li {
+  transition: transform 220ms ease;
+}
+
+.mensagem li:hover {
+  transform: translateX(5px);
+}
+
+.acesso {
+  background-image: radial-gradient(ellipse at 100% 0%, #7c3aed12, transparent 65%);
+}
+
+.formulario aside {
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.formulario aside:hover {
+  border-color: var(--color-primaria);
+  box-shadow: 0 12px 30px #7c3aed12;
+  transform: translateY(-3px);
+}
+
+.formulario a svg {
+  transition: transform 200ms ease;
+}
+
+.formulario a:hover svg {
+  transform: translateX(4px);
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbitar {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(36deg);
+  }
+}
+
+@keyframes flutuarLuz {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-35px, 35px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .marca {
+    animation: aparecer 650ms ease both;
+  }
+  .mensagem > * {
+    animation: aparecer 700ms ease both;
+  }
+  .mensagem > :nth-child(2) {
+    animation-delay: 90ms;
+  }
+  .mensagem > :nth-child(3) {
+    animation-delay: 180ms;
+  }
+  .mensagem > :nth-child(4) {
+    animation-delay: 270ms;
+  }
+  .formulario > * {
+    animation: aparecer 650ms ease both;
+  }
+  .formulario > :nth-child(2) {
+    animation-delay: 100ms;
+  }
+  .formulario > :nth-child(3) {
+    animation-delay: 200ms;
+  }
+  .orbita {
+    animation: orbitar 16s ease-in-out 2 alternate;
+  }
+  .orbitaInterna {
+    animation: orbitar 13s ease-in-out 2 alternate-reverse;
+  }
+  .vitrine::before {
+    animation: flutuarLuz 9s ease-in-out 2 alternate;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login *,
+  .login *::before,
+  .login *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .marca:hover svg,
+  .mensagem li:hover,
+  .formulario aside:hover,
+  .formulario a:hover svg {
+    transform: none;
+  }
+}

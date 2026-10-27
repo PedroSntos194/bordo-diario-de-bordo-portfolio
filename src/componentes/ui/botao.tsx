@@ -11,12 +11,14 @@ import { cn } from '@/lib/cn';
  * duplicada — não apenas uma requisição a mais.
  */
 const estilos = cva(
-  'inline-flex items-center justify-center gap-2 rounded-[--radius-padrao] font-medium transition-colors ' +
-    'disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2',
+  'inline-flex items-center justify-center gap-2 rounded-[--radius-padrao] font-medium ' +
+    'transition-[background-color,color,border-color,box-shadow,transform] duration-200 ' +
+    'enabled:hover:shadow-md motion-safe:enabled:active:scale-[0.98] motion-safe:enabled:hover:-translate-y-0.5 ' +
+    'motion-reduce:transform-none disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2',
   {
     variants: {
       variante: {
-        primaria: 'bg-primaria text-white hover:opacity-90',
+        primaria: 'bg-primaria text-sobre-primaria shadow-primaria/20 hover:opacity-90',
         secundaria: 'border border-borda bg-superficie text-texto hover:bg-borda/40',
         destrutiva: 'bg-erro text-white hover:opacity-90',
         discreta: 'text-texto-suave hover:bg-superficie',

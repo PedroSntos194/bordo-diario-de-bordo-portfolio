@@ -6,6 +6,32 @@ const ORIGEM = 'https://bordo.test';
 const ARQUIVOS_PUBLICOS = ['/sw.js'];
 
 describe('middleware: acesso antes do login', () => {
+  it('recebe visitantes na apresentação e preserva o encaminhamento de quem tem sessão', () => {
+    const visitante = middleware(new NextRequest(`${ORIGEM}/`));
+    expect(visitante.status).toBe(307);
+    expect(visitante.headers.get('location')).toBe(`${ORIGEM}/apresentacao`);
+    expect(visitante.headers.get('content-security-policy')).toContain("default-src 'self'");
+
+    const comSessao = middleware(
+      new NextRequest(`${ORIGEM}/`, { headers: { cookie: 'bordo_sessao=exemplo' } }),
+    );
+    expect(comSessao.headers.get('x-middleware-next')).toBe('1');
+    expect(comSessao.headers.get('location')).toBeNull();
+  });
+
+  it.each(['/apresentacao', '/apresentacao/admin-painel.png'])(
+    'abre a apresentação %s sem sessão e mantém a CSP',
+    (caminho) => {
+      const resposta = middleware(new NextRequest(`${ORIGEM}${caminho}`));
+
+      expect(resposta.headers.get('x-middleware-next')).toBe('1');
+      expect(resposta.headers.get('location')).toBeNull();
+      expect(resposta.headers.get('content-security-policy')).toContain(
+        "script-src 'self' 'nonce-",
+      );
+    },
+  );
+
   it('abre a ajuda de acesso sem sessão, com a política para os scripts da tela', () => {
     const resposta = middleware(new NextRequest(`${ORIGEM}/ajuda-acesso`));
 
@@ -35,6 +61,7 @@ describe('middleware: acesso antes do login', () => {
 
   it.each([
     '/app',
+    '/apresentacao-privada',
     '/admin/usuarios',
     '/admin/motoristas',
     '/admin/ajuda',

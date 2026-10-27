@@ -48,12 +48,18 @@ export function CartaoIndicador({
   );
 
   const classes =
-    'border-borda flex flex-col gap-1 rounded-[--radius-padrao] border p-4 transition-colors';
+    'border-borda bg-fundo flex flex-col gap-1 rounded-[--radius-padrao] border p-4 transition-[background-color,border-color,box-shadow,transform] duration-200';
 
   if (!href) return <div className={classes}>{conteudo}</div>;
 
   return (
-    <Link href={href} className={cn(classes, 'hover:bg-superficie')}>
+    <Link
+      href={href}
+      className={cn(
+        classes,
+        'hover:bg-superficie hover:border-primaria/50 hover:shadow-md motion-safe:hover:-translate-y-1',
+      )}
+    >
       {conteudo}
     </Link>
   );

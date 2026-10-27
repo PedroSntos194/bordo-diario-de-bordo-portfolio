@@ -129,7 +129,7 @@ export function SeletorCoordenada({ latitude, longitude, aoSelecionar }: Proprie
       if (!mapa.current) return;
 
       if (!marcador.current) {
-        marcador.current = new maplibre.Marker({ color: '#1d4ed8' });
+        marcador.current = new maplibre.Marker({ color: '#7c3aed' });
       }
 
       marcador.current.setLngLat([longitude, latitude]).addTo(mapa.current);

@@ -3,17 +3,18 @@
 /*
  * Tokens de cor e tipografia do doc 11.
  *
- * A paleta é neutra de propósito. Como tudo aqui é token, aplicar a identidade
- * visual de uma empresa é alterar este bloco — não refatorar componentes.
+ * Roxo e lavanda conectam a identidade da marca a todas as áreas do sistema.
+ * Os estados operacionais mantêm cores semânticas para facilitar a leitura.
  */
 @theme {
-  --color-fundo: #ffffff;
-  --color-superficie: #f6f7f9;
-  --color-borda: #e2e5ea;
-  --color-texto: #12151a;
-  --color-texto-suave: #5a6270;
-  --color-primaria: #1d4ed8;
-  --color-primaria-suave: #eff4ff;
+  --color-fundo: #fbf8ff;
+  --color-superficie: #f2eaff;
+  --color-borda: #ded0f0;
+  --color-texto: #27143d;
+  --color-texto-suave: #735e86;
+  --color-primaria: #7c3aed;
+  --color-primaria-suave: #ede2ff;
+  --color-sobre-primaria: #ffffff;
   --color-sucesso: #15803d;
   --color-sucesso-suave: #edfaf0;
   --color-atencao: #b45309;
@@ -49,13 +50,14 @@
  * lista de declarações entre seletores; mudar uma cor é mudar nos dois.
  */
 :root[data-tema='escuro'] {
-  --color-fundo: #0f1115;
-  --color-superficie: #171a20;
-  --color-borda: #2a2f38;
-  --color-texto: #f2f4f7;
-  --color-texto-suave: #9aa3b2;
-  --color-primaria: #3b82f6;
-  --color-primaria-suave: #16233d;
+  --color-fundo: #130b20;
+  --color-superficie: #1f1232;
+  --color-borda: #3b2456;
+  --color-texto: #f7f0ff;
+  --color-texto-suave: #c5b2da;
+  --color-primaria: #a78bfa;
+  --color-primaria-suave: #321c51;
+  --color-sobre-primaria: #201035;
   --color-sucesso: #22c55e;
   --color-sucesso-suave: #10251a;
   --color-atencao: #f59e0b;
@@ -63,19 +65,20 @@
   --color-erro: #ef4444;
   --color-erro-suave: #2c1414;
   --color-andamento: #a78bfa;
-  --color-andamento-suave: #1e1733;
+  --color-andamento-suave: #321c51;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-tema='sistema'] {
-    --color-fundo: #0f1115;
-    --color-superficie: #171a20;
-    --color-borda: #2a2f38;
-    --color-texto: #f2f4f7;
-    --color-texto-suave: #9aa3b2;
-    --color-primaria: #3b82f6;
-    --color-primaria-suave: #16233d;
+    --color-fundo: #130b20;
+    --color-superficie: #1f1232;
+    --color-borda: #3b2456;
+    --color-texto: #f7f0ff;
+    --color-texto-suave: #c5b2da;
+    --color-primaria: #a78bfa;
+    --color-primaria-suave: #321c51;
+    --color-sobre-primaria: #201035;
     --color-sucesso: #22c55e;
     --color-sucesso-suave: #10251a;
     --color-atencao: #f59e0b;
@@ -83,7 +86,7 @@
     --color-erro: #ef4444;
     --color-erro-suave: #2c1414;
     --color-andamento: #a78bfa;
-    --color-andamento-suave: #1e1733;
+    --color-andamento-suave: #321c51;
     color-scheme: dark;
   }
 }
@@ -106,6 +109,31 @@
   :focus-visible {
     outline: 2px solid var(--color-primaria);
     outline-offset: 2px;
+  }
+
+  ::selection {
+    background: #7c3aed;
+    color: #fff;
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primaria) 12%, transparent);
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--color-primaria);
   }
 
   /* Campos numéricos operacionais não exibem setas de incremento (doc 11). */
@@ -132,6 +160,11 @@
 /* Compatibilidade dos tokens usados pelos controles: no Tailwind 4 os valores
    arbitrários precisam de var(). Mantém o alvo de toque de 44px e os cantos. */
 @layer utilities {
+  /* Os links de ação existentes usam text-white junto de bg-primaria. */
+  .bg-primaria.text-white {
+    color: var(--color-sobre-primaria);
+  }
+
   .min-h-\[--spacing-toque\] {
     min-height: var(--spacing-toque);
   }

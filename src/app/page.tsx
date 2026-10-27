@@ -10,7 +10,7 @@ import { obterUsuarioDaSessao } from '@/lib/sessao';
 export default async function PaginaInicial() {
   const usuario = await obterUsuarioDaSessao();
 
-  if (!usuario) redirect('/login');
+  if (!usuario) redirect('/apresentacao');
   if (usuario.deveTrocarSenha) redirect('/trocar-senha');
   if (!usuario.aceitouPrivacidade) redirect('/privacidade/aceite');
 

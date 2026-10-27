@@ -24,7 +24,18 @@ who use it. This page is the English overview.
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma)
-![Tests](https://img.shields.io/badge/tests-829%20unit-2ea44f)
+![Tests](https://img.shields.io/badge/tests-837%20unit-2ea44f)
+
+## Presenting the project
+
+With the development server running, open [the showcase](http://localhost:3000/apresentacao).
+It explains the problem and includes a browser-only simulation with fictional data: open a shift,
+record a trip and simulate a signal interruption while watching the back-office view update.
+The simulation does not create real records or require a prepared database. The full application
+still requires PostgreSQL, migrations and demo data as described below.
+
+The [5–7 minute presentation guide](docs/37-roteiro-de-apresentacao.md) covers preparation,
+the demonstration sequence, engineering decisions and limitations (in Portuguese).
 
 ## Screens
 
@@ -87,7 +98,7 @@ confirms what the machine can't know — odometer, passengers and incidents.
   data access (`*.repositorio.ts`) and validation (`*.schema.ts`, with Zod).
 - **Every write goes through the same pipeline:** [`definirAcao`](src/lib/acao-segura.ts) runs
   session → permission → validation → transaction → audit. There is no write path outside it.
-- **Pure, tested business rules:** 829 unit tests with Vitest, plus end-to-end HTTP suites that
+- **Pure, tested business rules:** 837 unit tests with Vitest, plus end-to-end HTTP suites that
   start a throwaway PostgreSQL and drive the system with real sessions.
 - **Concurrency enforced by the database**, not just the code: partial unique indexes prevent two
   open shifts on the same van, two trips in progress on the same shift, or two days for the same
@@ -103,7 +114,7 @@ confirms what the machine can't know — odometer, passengers and incidents.
 - **Two documented and tested deployment paths:** containers (Docker Compose + Caddy with automatic
   TLS, scheduled jobs on pg-boss) and Vercel + Neon (with Vercel Cron), plus encrypted backups with a
   restore drill.
-- **Product and engineering docs:** 31 documents, from requirements and business rules to
+- **Product and engineering docs:** 32 documents, from requirements and business rules to
   architecture, API, security and privacy, traceable from requirement to rule, user story, screen,
   endpoint and test.
 

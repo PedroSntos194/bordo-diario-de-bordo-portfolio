@@ -43,6 +43,8 @@ export async function executar(ambiente, r) {
   );
   res = await anonimo.get('/api/usuarios');
   r.ok(res.status === 401, 'API sem login responde 401', resumo(res));
+  res = await anonimo.get('/apresentacao');
+  r.ok(res.status === 200, 'Apresentação abre sem sessão', resumo(res));
   res = await anonimo.get('/api/cron');
   r.ok(res.status === 404, 'Cron sem segredo responde 404', resumo(res));
   res = await anonimo.get('/api/cron', { headers: { authorization: `Bearer ${valorErrado()}` } });
@@ -76,8 +78,8 @@ export async function executar(ambiente, r) {
   r.ok(res.status === 200, 'Sessão vencida: /login abre o formulário', resumo(res));
   res = await vencida.seguir('/');
   r.ok(
-    res.status === 200 && res.caminho.startsWith('/login') && res.saltos <= 2,
-    'Sessão vencida: / chega ao login sem laço',
+    res.status === 200 && res.caminho === '/apresentacao' && res.saltos <= 2,
+    'Sessão vencida: / chega à apresentação sem laço; login continua acessível',
     `${res.status} em ${res.caminho} após ${res.saltos} redirecionamento(s)`,
   );
 

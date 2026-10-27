@@ -35,11 +35,11 @@ const FORMATO_NUMERICO: Record<FormatoDeCelula, string | undefined> = {
 
 const ALINHAMENTO_DIREITA = new Set<FormatoDeCelula>(['inteiro', 'decimal']);
 
-const AZUL_CABECALHO = 'FF1E3A5F';
+const ROXO_CABECALHO = 'FF5B21B6';
 
 function estilizarCabecalho(linha: ExcelJS.Row): void {
   linha.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-  linha.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL_CABECALHO } };
+  linha.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROXO_CABECALHO } };
   linha.alignment = { vertical: 'middle', horizontal: 'left' };
   linha.height = 22;
 }
@@ -82,7 +82,7 @@ function montarAbaDeIdentificacao(
   ];
 
   const titulo = aba.addRow([`${EMPRESA} · ${NOME_SISTEMA}`]);
-  titulo.font = { bold: true, size: 14, color: { argb: AZUL_CABECALHO } };
+  titulo.font = { bold: true, size: 14, color: { argb: ROXO_CABECALHO } };
   aba.mergeCells('A1:B1');
   aba.addRow([]);
 
@@ -234,7 +234,7 @@ export async function gerarPlanilhaEmFluxo<T>(
     ];
 
     const titulo = identificacao.addRow([`${EMPRESA} · ${NOME_SISTEMA}`]);
-    titulo.font = { bold: true, size: 14, color: { argb: AZUL_CABECALHO } };
+    titulo.font = { bold: true, size: 14, color: { argb: ROXO_CABECALHO } };
     titulo.commit();
     identificacao.addRow([]).commit();
 
@@ -406,7 +406,7 @@ export async function gerarPlanilhaDeModelo(modelo: ModeloDePlanilha): Promise<B
   instrucoes.columns = [{ width: 26 }, { width: 12 }, { width: 72 }];
 
   const titulo = instrucoes.addRow([modelo.titulo]);
-  titulo.font = { bold: true, size: 14, color: { argb: AZUL_CABECALHO } };
+  titulo.font = { bold: true, size: 14, color: { argb: ROXO_CABECALHO } };
   instrucoes.mergeCells('A1:C1');
   instrucoes.addRow([]);
 

@@ -56,7 +56,9 @@ bordo/
     │   │       ├── auditoria/page.tsx
     │   │       └── configuracoes/page.tsx
     │   ├── api/                              # contratos HTTP (doc 16)
-    │   │   ├── auth/[...nextauth]/route.ts
+    │   │   ├── auth/login/route.ts          # CPF + senha, sessão própria
+    │   │   ├── auth/logout/route.ts
+    │   │   ├── auth/trocar-senha/route.ts
     │   │   ├── jornadas/route.ts
     │   │   ├── jornadas/[id]/encerrar/route.ts
     │   │   ├── corridas/…
@@ -110,11 +112,12 @@ bordo/
     │
     ├── lib/                                  # infraestrutura transversal
     │   ├── prisma.ts                         # instância única do client
-    │   ├── auth.ts                           # configuração do Auth.js
+    │   ├── sessao.ts                         # token opaco, cookie e sessão em banco
+    │   ├── senha.ts                          # hash Argon2id e senha temporária
     │   ├── autorizacao.ts                    # exigirSessao(), exigirPerfil(), exigirEscopo()
     │   ├── acao-segura.ts                    # wrapper: sessão → permissão → validação → transação → auditoria
     │   ├── erros.ts                          # ErroDeNegocio, ErroDeValidacao, ErroDePermissao (doc 18)
-    │   ├── storage/                          # StorageService + implementações local e S3
+    │   ├── armazenamento.ts                 # implementações local e S3
     │   ├── excel/                            # utilitários ExcelJS
     │   ├── fila/                             # pg-boss: registro e definição das tarefas
     │   ├── logger.ts                         # logs estruturados sem dado pessoal
@@ -143,10 +146,9 @@ bordo/
     └── middleware.ts                         # proteção de rota por perfil (RF041)
 
 tests/
-├── unitarios/          # espelha src/modulos — foco nas regras
-├── integracao/         # casos de uso com banco de teste
-├── api/                # contratos e códigos de status
-└── e2e/                # Playwright: fluxos críticos
+├── unitarios/          # Vitest: regras e serviços
+├── integracao/         # contratos HTTP e proteções, com banco descartável
+└── ponta-a-ponta/      # roteiros HTTP com sessões reais de admin e motorista
 ```
 
 ## Regras de organização
