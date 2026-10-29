@@ -25,33 +25,50 @@ medição por contrato) e exporta tudo para Excel.
 
 ## Apresentar o projeto
 
-Abra o [portfólio publicado](https://bordo-diario-de-bordo-portfolio.vercel.app) para apresentar
-o projeto e experimentar a demonstração com dados fictícios, sem cadastrar usuários ou preparar
-jornadas. Para abrir a mesma versão no seu computador:
+Acesse o [sistema completo](https://bordo-diario-de-bordo-portfolio.vercel.app) para usar
+login, área do motorista e administração com dados fictícios persistidos. A raiz abre o login;
+quem já entrou é encaminhado à área do seu perfil. A apresentação do projeto continua em
+[/apresentacao](https://bordo-diario-de-bordo-portfolio.vercel.app/apresentacao).
+
+O `vercel.json` publica a aplicação Next.js completa com `npm run build`, usando a saída padrão
+do framework. Essa instalação de portfólio usa banco e armazenamento próprios, separados da
+instalação da empresa. A configuração e a conferência dos serviços estão no
+[guia de publicação na Vercel](docs/27-vercel.md). Não há cron habilitado neste repositório.
+
+Para usar o **sistema completo no computador**, com login, banco PostgreSQL e registros
+persistidos, deixe o Docker Desktop em execução e rode:
 
 ```bash
 npm ci
+npm run dev:demo
+```
+
+Abra <http://localhost:3001>. O comando prepara um banco exclusivo com dados fictícios e mostra
+os CPFs e a senha de acesso no terminal. Nas próximas execuções, preserva os registros existentes.
+Sua configuração fica no arquivo local ignorado `.env.demo.local`.
+
+### Alternativa: somente a apresentação
+
+A apresentação inclui uma simulação em memória: abrir o dia, registrar uma corrida e experimentar
+uma interrupção do sinal enquanto o painel da administração acompanha as ações. Para abrir essa
+versão isolada no computador:
+
+```bash
 npm run preview:portfolio
 ```
 
-Acesse <http://localhost:3001>. A prévia gera e serve somente a apresentação e a demonstração,
-sem `.env`, PostgreSQL ou login. Nela, um endereço antigo como `/login` leva à demonstração.
-O comando `npm run dev` é destinado ao **sistema completo**: para usá-lo, configure o ambiente
-e o banco seguindo a seção [Como rodar a demonstração](#como-rodar-a-demonstração).
+Acesse <http://localhost:3001>. Essa prévia serve somente a apresentação e a simulação, sem `.env`,
+PostgreSQL ou login. Nela, um endereço antigo como `/login` leva à simulação. Use uma prévia de
+cada vez, pois os dois comandos locais usam a porta 3001.
 
-O site público de portfólio publica apenas a apresentação e a demonstração interativa. Para
-gerar essa versão, execute `npm run build:portfolio`; os arquivos ficam em
-`output/portfolio-build/out`. Ela não exige banco, login ou variáveis de ambiente. O `vercel.json`
-deste repositório usa esse build estático, sem APIs e sem rotinas agendadas. O botão **Ver código**
-leva ao repositório. Para executar o sistema completo localmente, siga as instruções abaixo.
-
-No sistema completo, visitantes sem sessão chegam à apresentação ao abrir a raiz; quem já entrou
-continua sendo encaminhado à área do seu perfil.
+Para gerar os arquivos estáticos dessa alternativa, execute `npm run build:portfolio`;
+a saída fica em `output/portfolio-build/out`. Esse build continua disponível para hospedagem
+estática separada; o deploy padrão da Vercel usa o sistema completo.
 
 O [roteiro de 5 a 7 minutos](docs/37-roteiro-de-apresentacao.md) sugere a ordem da demonstração,
-as decisões técnicas a destacar e os limites a explicar. Para conhecer a operação completa, com
-login, persistência, sincronização e exportações reais, siga [Como rodar a demonstração](#como-rodar-a-demonstração):
-esse fluxo exige PostgreSQL, migrações e o seed fictício.
+as decisões técnicas a destacar e os limites a explicar. O comando `npm run dev` inicia o
+sistema completo com a configuração manual de ambiente e banco descrita em
+[Como rodar a demonstração](#como-rodar-a-demonstração).
 
 ## Telas
 

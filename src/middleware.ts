@@ -132,10 +132,10 @@ export function middleware(requisicao: NextRequest): NextResponse {
   }
 
   if (!temSessao) {
-    // A versão de portfólio apresenta o produto a quem chega sem sessão.
-    // A operação continua acessível pelo login e pelo atalho instalado em /app.
+    // O sistema completo começa pelo login. A apresentação pública também
+    // possui um build estático próprio, sem passar por este middleware.
     if (pathname === '/') {
-      return comPolitica(NextResponse.redirect(new URL('/apresentacao', requisicao.url)));
+      return comPolitica(NextResponse.redirect(new URL('/login', requisicao.url)));
     }
 
     // Rotas de API respondem 401; telas redirecionam preservando o destino.

@@ -29,8 +29,17 @@ const esquemaEnv = z.object({
 
   SESSAO_SECRET: z.string().min(32, 'SESSAO_SECRET precisa ter no mínimo 32 caracteres'),
 
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_DRIVER: z.enum(['local', 's3', 'blob']).default('local'),
   STORAGE_PATH: z.string().default('./storage'),
+
+  /**
+   * Vercel Blob privado. O SDK resolve e renova o OIDC automaticamente quando
+   * há um store conectado; fora da Vercel também aceita um token read-write.
+   * Nenhuma dessas credenciais é enviada ao navegador.
+   */
+  BLOB_STORE_ID: z.string().optional(),
+  VERCEL_OIDC_TOKEN: z.string().optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
 
   /**
    * Destino dos arquivos gerados quando `STORAGE_DRIVER=s3`.
@@ -139,6 +148,19 @@ const esquemaComRegras = esquemaEnv.superRefine((valores, ctx) => {
         });
       }
     }
+  }
+
+  if (
+    valores.STORAGE_DRIVER === 'blob' &&
+    !valores.BLOB_READ_WRITE_TOKEN &&
+    !(valores.BLOB_STORE_ID && valores.VERCEL_OIDC_TOKEN)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['BLOB_STORE_ID'],
+      message:
+        'STORAGE_DRIVER=blob exige BLOB_STORE_ID com VERCEL_OIDC_TOKEN ou BLOB_READ_WRITE_TOKEN',
+    });
   }
 });
 

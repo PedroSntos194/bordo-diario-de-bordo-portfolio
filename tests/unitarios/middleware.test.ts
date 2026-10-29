@@ -6,10 +6,10 @@ const ORIGEM = 'https://bordo.test';
 const ARQUIVOS_PUBLICOS = ['/sw.js'];
 
 describe('middleware: acesso antes do login', () => {
-  it('recebe visitantes na apresentação e preserva o encaminhamento de quem tem sessão', () => {
+  it('recebe visitantes no login e preserva o encaminhamento de quem tem sessão', () => {
     const visitante = middleware(new NextRequest(`${ORIGEM}/`));
     expect(visitante.status).toBe(307);
-    expect(visitante.headers.get('location')).toBe(`${ORIGEM}/apresentacao`);
+    expect(visitante.headers.get('location')).toBe(`${ORIGEM}/login`);
     expect(visitante.headers.get('content-security-policy')).toContain("default-src 'self'");
 
     const comSessao = middleware(

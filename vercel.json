@@ -1,10 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
+  "framework": "nextjs",
   "installCommand": "npm ci",
-  "buildCommand": "npm run build:portfolio",
-  "outputDirectory": "output/portfolio-build/out",
-  "cleanUrls": true,
+  "buildCommand": "npm run build",
+  "regions": ["gru1"],
   "headers": [
     {
       "source": "/(.*)",

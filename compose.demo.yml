@@ -1,0 +1,21 @@
+# Banco persistente e exclusivo da demonstração local. Não usa o banco da empresa.
+name: bordo-portfolio-demo
+services:
+  banco:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bordo_demo
+      POSTGRES_PASSWORD: ${DEMO_DB_SENHA:?Execute npm run dev:demo para gerar a configuração local}
+      POSTGRES_DB: bordo_demo
+    ports:
+      - '127.0.0.1:55434:5432'
+    volumes:
+      - dados-demo:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bordo_demo -d bordo_demo']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  dados-demo:
+    name: bordo-portfolio-demo-postgres

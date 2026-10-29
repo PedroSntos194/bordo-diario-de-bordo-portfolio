@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:demo": "node scripts/iniciar-demo-local.mjs",
     "build": "prisma generate && next build",
     "build:portfolio": "node scripts/construir-portfolio.mjs",
     "preview:portfolio": "npm run build:portfolio && node scripts/preview-portfolio.mjs",
@@ -43,6 +44,7 @@
     "@aws-sdk/client-s3": "^3.1141.0",
     "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^6.3.1",
+    "@vercel/blob": "^2.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",

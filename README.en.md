@@ -28,25 +28,49 @@ who use it. This page is the English overview.
 
 ## Presenting the project
 
-Open the [published portfolio](https://bordo-diario-de-bordo-portfolio.vercel.app) or run
-`npm run preview:portfolio` after installing dependencies to use the same showcase locally at
-<http://localhost:3001>. This command builds and serves the portfolio without `.env`, PostgreSQL
-or login. An old `/login` URL redirects to the interactive demo. `npm run dev` runs the complete
-application and requires the environment and database setup described below.
+Open the [complete application](https://bordo-diario-de-bordo-portfolio.vercel.app) to use
+login, the driver area and the back office with persistent fictional records. The root opens the
+login; authenticated users go to their profile's area. The project showcase remains available at
+[/apresentacao](https://bordo-diario-de-bordo-portfolio.vercel.app/apresentacao).
 
-The showcase explains the problem and includes a browser-only simulation with fictional data: open a shift,
-record a trip and simulate a signal interruption while watching the back-office view update.
-The simulation does not create real records or require a prepared database. The full application
-still requires PostgreSQL, migrations and demo data as described below.
+The repository's `vercel.json` deploys the complete Next.js application using `npm run build`
+and the framework's default output. This portfolio installation uses its own database and storage,
+separate from the company's installation. See the [Vercel deployment guide](docs/27-vercel.md)
+for service configuration and verification. No cron schedule is enabled in this repository.
+
+To run the **complete application locally**, including login, PostgreSQL and persistent records,
+start Docker Desktop and run:
+
+```bash
+npm ci
+npm run dev:demo
+```
+
+Open <http://localhost:3001>. The command prepares a separate database with fictional data and
+prints the account identifiers and password. Later runs preserve existing records. Configuration
+is stored in the ignored local file `.env.demo.local`.
+
+### Alternative: the showcase only
+
+The showcase includes an in-memory simulation: open a shift, record a trip and simulate a signal
+interruption while watching the back-office view update. To open this separate version locally:
+
+```bash
+npm run preview:portfolio
+```
+
+Open <http://localhost:3001>. This preview serves only the showcase and simulation, without
+`.env`, PostgreSQL or login. An old `/login` URL redirects to the simulation. Run one local
+preview at a time, because both commands use port 3001.
+
+Run `npm run build:portfolio` to generate this alternative's static files in
+`output/portfolio-build/out`. This build remains available for separate static hosting;
+the default Vercel deployment uses the complete application.
 
 The [5–7 minute presentation guide](docs/37-roteiro-de-apresentacao.md) covers preparation,
 the demonstration sequence, engineering decisions and limitations (in Portuguese).
-
-The public portfolio deploys only this showcase and interactive demo. Run `npm run build:portfolio`
-to generate `output/portfolio-build/out` without a database, login or environment variables.
-This repository's `vercel.json` deploys that static output, with no API or scheduled jobs.
-The **Ver código** button links to the source. The complete application remains available locally
-using the setup below.
+`npm run dev` starts the complete application with the manual environment and database setup
+[described below](#running-the-demo).
 
 ## Screens
 

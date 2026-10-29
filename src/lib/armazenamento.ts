@@ -10,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { BlobNotFoundError, del, get, head, put } from '@vercel/blob';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
@@ -28,9 +29,8 @@ import { logger } from '@/lib/logger';
  *    o caminho clássico para travessia de diretório. O nome que o usuário vê
  *    (`nomeOriginal`) é só um rótulo no banco; o que existe no disco é um uuid.
  *
- * A interface tem duas implementações previstas — sistema de arquivos local
- * (padrão) e S3/MinIO, quando houver mais de uma instância. Trocar uma pela
- * outra não afeta nenhum caso de uso.
+ * A interface aceita sistema de arquivos local (padrão), S3/MinIO ou Vercel
+ * Blob privado. Trocar o destino não afeta nenhum caso de uso.
  */
 
 export interface ArquivoArmazenado {
@@ -250,7 +250,73 @@ class ArmazenamentoS3 implements Armazenamento {
   }
 }
 
+/**
+ * Blob privado persistente para a hospedagem na Vercel. O SDK autentica usando
+ * o store conectado e OIDC, ou o token read-write, sem copiar credenciais para
+ * cada chamada. Downloads continuam passando pela autorização da aplicação.
+ */
+class ArmazenamentoBlob implements Armazenamento {
+  private chaveSegura(chave: string): string {
+    // O SDK também aceita URLs. Aqui só aceitamos a chave relativa gerada pela
+    // aplicação, mesmo quando ela volta do banco, para não mudar de store.
+    if (
+      !chave ||
+      chave.startsWith('/') ||
+      /[\\:?#]/.test(chave) ||
+      [...chave].some((caractere) => caractere.charCodeAt(0) < 32) ||
+      chave.split('/').some((parte) => !parte || parte === '.' || parte === '..')
+    ) {
+      throw new Error('Chave de armazenamento Blob inválida.');
+    }
+    return chave;
+  }
+
+  async gravar(chave: string, conteudo: Buffer): Promise<ArquivoArmazenado> {
+    const hashSha256 = createHash('sha256').update(conteudo).digest('hex');
+
+    await put(this.chaveSegura(chave), conteudo, {
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+
+    return { chave, tamanhoBytes: conteudo.byteLength, hashSha256 };
+  }
+
+  async ler(chave: string): Promise<Buffer | null> {
+    const resposta = await get(this.chaveSegura(chave), {
+      access: 'private',
+      useCache: false,
+    });
+    if (!resposta) return null;
+    if (resposta.statusCode !== 200) {
+      throw new Error('Resposta inesperada ao ler o armazenamento Blob.');
+    }
+    return Buffer.from(await new Response(resposta.stream).arrayBuffer());
+  }
+
+  async existe(chave: string): Promise<boolean> {
+    try {
+      await head(this.chaveSegura(chave));
+      return true;
+    } catch (erro) {
+      if (erro instanceof BlobNotFoundError) return false;
+      throw erro;
+    }
+  }
+
+  async remover(chave: string): Promise<void> {
+    // `del` é idempotente: remover um objeto já ausente também tem sucesso.
+    await del(this.chaveSegura(chave));
+  }
+}
+
 function criar(): Armazenamento {
+  if (env.STORAGE_DRIVER === 'blob') {
+    logger.debug('armazenamento.blob', {});
+    return new ArmazenamentoBlob();
+  }
+
   if (env.STORAGE_DRIVER === 's3') {
     // As cinco variáveis são exigidas na validação do ambiente (`env.ts`), que
     // falha na subida se faltar alguma. As asserções aqui são só para o tipo.
