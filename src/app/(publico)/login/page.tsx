@@ -41,9 +41,7 @@ export default async function PaginaDeLogin({
           className={`${estilos.marca} relative flex w-fit items-center gap-3 rounded-lg`}
         >
           <MarcaBordo className="size-11" />
-          <span className="text-2xl font-semibold tracking-tight">
-            Bordo<span className="ml-1 text-violet-300">.</span>
-          </span>
+          <span className="text-2xl font-semibold tracking-tight">Bordo</span>
         </Link>
 
         <div className={`${estilos.mensagem} relative my-16 max-w-lg`}>

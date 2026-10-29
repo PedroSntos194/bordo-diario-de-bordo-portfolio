@@ -100,9 +100,7 @@ export default function PaginaDeApresentacao() {
             aria-label="Bordo, início da apresentação"
           >
             <MarcaBordo className={estilos.simbolo} />
-            <span>
-              bordo<span className={estilos.ponto}>.</span>
-            </span>
+            <span>bordo</span>
           </Link>
 
           <nav className={estilos.navegacao} aria-label="Navegação da apresentação">
@@ -443,9 +441,7 @@ export default function PaginaDeApresentacao() {
         <div className={estilos.container}>
           <Link href="/apresentacao" className={estilos.marca}>
             <MarcaBordo className={estilos.simbolo} />
-            <span>
-              bordo<span className={estilos.ponto}>.</span>
-            </span>
+            <span>bordo</span>
           </Link>
           <p>Projeto de portfólio. Nomes, rotas, placas e números apresentados são fictícios.</p>
           <a href="#conteudo">

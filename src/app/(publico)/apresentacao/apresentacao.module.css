@@ -87,16 +87,8 @@
   height: 37px;
 }
 
-.ponto {
-  color: #7c3aed;
-}
-
 .cabecalho .marca {
   color: #faf5ff;
-}
-
-.cabecalho .ponto {
-  color: #d8b4fe;
 }
 
 .cabecalho :focus-visible {
