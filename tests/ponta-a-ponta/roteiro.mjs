@@ -78,8 +78,8 @@ export async function executar(ambiente, r) {
   r.ok(res.status === 200, 'Sessão vencida: /login abre o formulário', resumo(res));
   res = await vencida.seguir('/');
   r.ok(
-    res.status === 200 && res.caminho === '/apresentacao' && res.saltos <= 2,
-    'Sessão vencida: / chega à apresentação sem laço; login continua acessível',
+    res.status === 200 && res.caminho === '/login' && res.saltos <= 2,
+    'Sessão vencida: / chega ao login sem laço',
     `${res.status} em ${res.caminho} após ${res.saltos} redirecionamento(s)`,
   );
 
